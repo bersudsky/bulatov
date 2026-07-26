@@ -1,0 +1,2019 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ИСКАЖЕНИЕ — инструмент деформации шрифта</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+<style>
+:root{
+  --panel:#ffffff;
+  --panel-2:#f0f0ef;
+  --chip:#f0f0ef;
+  --chip-hover:#e8e8e6;
+  --line:#e3e3e0;
+  --ink:#1a1a1c;
+  --ink-soft:#8a8a8f;
+  --stage:#16161a;
+  --blue:#2545f5;
+  --red:#ff3b15;
+  --green:#9dd18e;
+  --yellow:#f2c94c;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r:12px;
+  --fsz:14px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:var(--mono);
+  background:var(--panel);
+  color:var(--ink);
+  font-size:var(--fsz);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.app{display:flex;height:100dvh}
+
+/* ---------- панель ---------- */
+.panel{
+  width:340px;flex:0 0 340px;
+  background:var(--panel);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+  padding:8px;
+}
+.panel::-webkit-scrollbar{width:8px}
+.panel::-webkit-scrollbar-thumb{background:#e0e0dd;border-radius:8px}
+.brand{
+  padding:14px 12px 10px;
+  display:flex;align-items:baseline;gap:8px;
+}
+.brand b{font-size:14px;letter-spacing:.16em;font-weight:600}
+.brand span{color:var(--ink-soft);font-size:11px;letter-spacing:.06em}
+
+.group{padding:8px 4px 12px}
+.group > h2{
+  margin:0 4px 8px;font-size:11px;letter-spacing:.14em;
+  color:var(--ink-soft);font-weight:600;text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.group > h2 em{font-style:normal;color:var(--ink);letter-spacing:.04em;text-transform:none}
+
+/* загрузка шрифта */
+.drop{
+  border-radius:var(--r);background:var(--chip);
+  padding:18px 12px;text-align:center;cursor:pointer;
+  transition:background .12s;
+}
+.drop:hover,.drop.over{background:#e6ebff}
+.drop strong{display:block;font-size:14px;letter-spacing:.02em;font-weight:600}
+.drop small{display:block;margin-top:6px;color:var(--ink-soft);font-size:12px}
+.fontinfo{margin:8px 4px 0;font-size:12px;line-height:1.5;color:var(--ink-soft);word-break:break-word}
+.fontinfo b{color:var(--ink);font-weight:600}
+
+textarea{
+  width:100%;min-height:62px;resize:vertical;
+  font-family:var(--mono);font-size:var(--fsz);line-height:1.45;
+  padding:10px 12px;border:0;border-radius:var(--r);background:var(--chip);color:var(--ink);
+}
+textarea:focus,input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
+
+/* строка-плашка параметра */
+.row{
+  position:relative;display:flex;align-items:center;justify-content:space-between;
+  background:var(--chip);border-radius:var(--r);padding:0 14px;height:50px;
+  margin-bottom:6px;overflow:hidden;
+}
+.row:last-child{margin-bottom:0}
+.row label{display:flex;align-items:center;justify-content:space-between;width:100%;margin:0}
+.row label span{font-size:var(--fsz);color:var(--ink);letter-spacing:.01em;z-index:1}
+.num{
+  width:auto;min-width:44px;text-align:right;font-family:var(--mono);font-size:var(--fsz);font-weight:600;
+  border:0;background:none;padding:0;color:var(--ink);
+  -moz-appearance:textfield;appearance:textfield;cursor:ew-resize;z-index:1;
+}
+.num::-webkit-outer-spin-button,.num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.num:focus{cursor:text;outline:none}
+.val{font-size:var(--fsz);font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;z-index:1}
+
+/* слайдер — прогресс-заливкой плашки */
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  position:absolute;inset:0;width:100%;height:100%;margin:0;
+  background:none;cursor:ew-resize;z-index:2;opacity:0;
+}
+.row .fill{position:absolute;left:0;top:0;bottom:0;background:var(--chip-hover);z-index:0;pointer-events:none;border-radius:var(--r)}
+
+.seg{display:flex;background:var(--chip);border-radius:10px;padding:3px;gap:2px}
+.seg button{
+  flex:1;padding:7px 0;border:0;border-radius:8px;
+  background:none;font-family:var(--mono);font-size:13px;color:var(--ink-soft);cursor:pointer;transition:all .1s;
+}
+.seg button.on{background:var(--ink);color:#fff}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.lrow{display:grid;grid-template-columns:16px 1fr 46px 46px 62px 16px;gap:6px;
+  align-items:start;margin-bottom:6px}
+.lrow > *:not(.ltext){align-self:center}
+.lrow .num{width:100%;min-width:0;text-align:center;background:var(--chip);border-radius:8px;height:34px;cursor:ew-resize}
+.lhead{margin-bottom:2px}
+.lhead span{font-size:10px;letter-spacing:.02em;color:var(--ink-soft);text-align:center}
+.lna{text-align:center;color:var(--line)}
+.seg.mini{height:34px;min-width:0;padding:2px}
+.seg.mini button{padding:0;font-size:11px;min-width:0}
+.lrow .ltext{min-width:0;width:100%;box-sizing:border-box;
+  font-family:var(--mono);font-size:13px;padding:8px 10px;
+  border:0;border-radius:8px;background:var(--chip);color:var(--ink);
+  resize:none;overflow:hidden;line-height:1.4;display:block;height:auto}
+.lmain{border:0;background:none;padding:0;cursor:pointer;font-size:13px;line-height:1;
+  color:var(--line);width:16px;text-align:center}
+.lmain.on{color:var(--blue)}
+.ldel{border:0;background:none;padding:0;cursor:pointer;color:var(--line);
+  font-family:var(--mono);font-size:15px;line-height:1}
+.ldel:hover{color:var(--red)}
+.lrow.drag{opacity:.4}
+.lrow.over{box-shadow:0 -2px 0 var(--blue)}
+.lgrip{cursor:grab}
+.lgrip:active{cursor:grabbing}
+
+/* тумблер */
+.toggle{display:flex;align-items:center;justify-content:space-between;
+  background:var(--chip);border-radius:var(--r);padding:0 14px;height:50px;
+  cursor:pointer;font-size:var(--fsz);margin-bottom:6px;gap:10px}
+.toggle span{flex:1}
+.toggle input{
+  -webkit-appearance:none;appearance:none;margin:0;position:relative;flex:0 0 auto;
+  width:44px;height:26px;border-radius:26px;background:#d4d4d1;cursor:pointer;transition:background .15s;
+}
+.toggle input::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;
+  border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.toggle input:checked{background:var(--blue)}
+.toggle input:checked::after{transform:translateX(18px)}
+
+.actions{padding:8px 4px;display:grid;gap:6px}
+.btn{
+  padding:14px;border:0;border-radius:var(--r);background:var(--ink);color:#fff;
+  font-family:var(--mono);font-size:13px;letter-spacing:.06em;cursor:pointer;transition:opacity .1s;
+}
+.btn:hover{opacity:.85}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.ghost:hover{background:var(--chip-hover);opacity:1}
+.btn.danger{background:var(--chip);color:var(--ink-soft)}
+.btn.danger:hover,.btn.danger.armed{background:var(--red);color:#fff}
+.hint{margin:6px 4px 0;font-size:12px;line-height:1.5;color:var(--ink-soft)}
+.hint kbd{font-family:var(--mono);font-size:11px;border-radius:5px;background:var(--chip);padding:1px 5px}
+.hint b{color:var(--ink);font-weight:600}
+.memrow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;
+  background:var(--chip);border-radius:var(--r);padding:0 14px;min-height:50px}
+.memrow .toggle{padding:0;background:none;height:auto;margin:0;min-height:0}
+.linkbtn{border:0;background:none;padding:0;font-family:var(--mono);font-size:13px;
+  color:var(--blue);cursor:pointer;white-space:nowrap;font-weight:600}
+.linkbtn:hover{color:var(--red)}
+.linkbtn[disabled]{color:var(--ink-soft);cursor:default}
+.tinput{flex:1;min-width:0;font-family:var(--mono);font-size:13px;padding:10px 12px;
+  border:0;border-radius:8px;background:var(--chip);color:var(--ink)}
+.prow{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--chip);
+  border-radius:10px;margin-bottom:5px}
+.prow .picon{flex:0 0 auto;width:32px;height:22px;display:block;color:var(--ink)}
+.prow .pname{flex:1;min-width:0;text-align:left;border:0;background:none;padding:0;cursor:pointer;
+  font-family:var(--mono);font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .pname:hover{color:var(--blue)}
+.prow .pdel{border:0;background:none;padding:0 2px;cursor:pointer;color:var(--ink-soft);font-family:var(--mono);font-size:15px}
+.prow .pdel:hover{color:var(--red)}
+
+/* ---------- сцена ---------- */
+.stage{flex:1;position:relative;background:var(--stage);overflow:hidden;cursor:grab}
+.stage.panning{cursor:grabbing}
+.stage.kern{cursor:col-resize}
+#svg{width:100%;height:100%;display:block;touch-action:none}
+.empty{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;color:#6b6c75;text-align:center;padding:24px;
+}
+.empty b{color:#dcdce2;font-size:14px;letter-spacing:.14em;font-weight:600}
+.empty p{margin:0;font-size:13px;line-height:1.6;max-width:300px}
+.hud{
+  position:absolute;left:0;right:0;bottom:0;padding:10px 14px;
+  display:flex;gap:16px;color:#6b6c75;font-size:11px;letter-spacing:.06em;
+  pointer-events:none;justify-content:space-between;
+}
+.hud b{color:#b9bac2;font-weight:400}
+.nav{position:absolute;top:12px;right:12px;display:flex;gap:5px}
+.navbtn{
+  min-width:34px;height:34px;padding:0 10px;border-radius:9px;
+  border:0;background:rgba(255,255,255,.1);color:#cfcfd4;
+  font-family:var(--mono);font-size:13px;letter-spacing:.04em;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:background .1s;
+}
+.navbtn:hover{background:rgba(255,255,255,.2);color:#fff}
+.navbtn.wide{min-width:70px;font-size:11px}
+.stage.light .navbtn{background:rgba(0,0,0,.06);color:#4a4b50}
+.stage.light .navbtn:hover{background:rgba(0,0,0,.12)}
+
+dialog{border:0;border-radius:var(--r);background:var(--panel);padding:0;max-width:min(680px,92vw);width:100%}
+dialog::backdrop{background:rgba(20,20,24,.5)}
+dialog .dh{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;font-size:12px;letter-spacing:.12em;color:var(--ink-soft)}
+dialog textarea{border-radius:0;min-height:300px;font-size:12px}
+dialog .df{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end}
+
+@media (max-width:820px){
+  .app{flex-direction:column-reverse}
+  .panel{width:100%;flex:1 1 auto;border-right:0;border-top:1px solid var(--line)}
+  .stage{flex:0 0 44dvh}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="panel">
+    <div class="brand"><b>ИСКАЖЕНИЕ</b><span>v1</span></div>
+
+    <div class="group">
+      <h2>Шрифт</h2>
+      <div class="drop" id="drop">
+        <strong id="dropTitle">Выбрать файл шрифта</strong>
+        <small>ttf · otf · woff — или перетащите сюда</small>
+      </div>
+      <input type="file" id="file" accept=".ttf,.otf,.woff,font/ttf,font/otf,font/woff" hidden>
+      <div class="fontinfo" id="fontinfo"></div>
+      <div class="memrow">
+        <label class="toggle"><input type="checkbox" id="remember" checked>Помнить шрифт и настройки</label>
+        <button class="linkbtn" id="forget">Очистить</button>
+      </div>
+      <div class="hint" id="memInfo"></div>
+    </div>
+
+    <div class="group">
+      <h2>Текст</h2>
+      <div id="lineRows"></div>
+      <div class="memrow" style="margin-top:6px">
+        <span></span>
+        <button class="linkbtn" id="lineAdd">+ строка</button>
+      </div>
+      <div style="margin-top:12px"></div>
+      <div class="row">
+        <label><span>Высота всех строк · %</span><input class="num" id="vsAllN" type="number" min="80" max="120" step="1" data-snap="100" value="100"></label>
+        <input type="range" id="vsAll" min="80" max="120" step="1" value="100">
+        <div class="hint" id="vsInfo" style="margin-top:2px"></div>
+      </div>
+      <div class="row">
+        <label><span>Трекинг · % от кегля</span><input class="num" id="trackN" type="number" min="-10" max="10" step="0.1" value="0"></label>
+        <input type="range" id="track" min="-10" max="10" step="0.1" value="0">
+      </div>
+      <div class="row">
+        <label><span>Перенос внутри строки · %</span><input class="num" id="softLeadN" type="number" min="0" max="300" step="1" value="100"></label>
+        <input type="range" id="softLead" min="0" max="300" step="1" value="100">
+      </div>
+
+      <label class="toggle"><input type="checkbox" id="kern" checked>Кернинг из шрифта</label>
+    </div>
+
+
+    <div class="group">
+      <h2>Искажение</h2>
+      <div class="seg" id="mode" style="margin-bottom:8px">
+        <button data-m="persp" class="on">со схождением</button>
+        <button data-m="mesh">равномерно</button>
+      </div>
+      <div class="memrow" style="margin-top:0">
+        <label class="toggle" style="padding:0"><input type="checkbox" id="kernMode">Ручной кернинг (клик по букве)</label>
+        <button class="linkbtn" id="kernReset">сбросить</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="snap" checked>Прилипание к целым градусам</label>
+      <label class="toggle"><input type="checkbox" id="vlock">Движение точек только вертикально</label>
+      <label class="toggle"><input type="checkbox" id="boxMetrics" checked>Считать по метрикам, а не по контуру</label>
+      <div style="margin-top:8px;text-align:right"><button class="linkbtn" id="resetHandles">сбросить искажение</button></div>
+    </div>
+
+    <div class="group">
+      <h2>Вид</h2>
+      <label class="toggle"><input type="checkbox" id="mesh" checked>Сетка и точки</label>
+      <label class="toggle"><input type="checkbox" id="guides">Линии шрифта</label>
+      <label class="toggle"><input type="checkbox" id="inv">Тёмное на светлом</label>
+    </div>
+
+    <div class="group">
+      <h2>Состояния</h2>
+      <div class="memrow" style="margin-top:0">
+        <input class="tinput" id="presetName" type="text" placeholder="название" spellcheck="false">
+        <button class="linkbtn" id="presetSave">сохранить</button>
+      </div>
+      <div class="memrow" style="margin-top:6px">
+        <span style="font-size:10px;color:var(--ink-soft)">из текущего</span>
+        <button class="linkbtn" id="presetMirror">+ 3 зеркальные версии</button>
+      </div>
+      <div id="presetList"></div>
+    </div>
+
+    <div class="group">
+      <h2>Экспорт</h2>
+      <label class="toggle"><input type="checkbox" id="expFrame" checked>Границы по рамке, а не по контуру</label>
+      <div class="hint">Овершуты круглых остаются за краем — выравнивать можно по базовой линии и высоте прописных.</div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="exSvg">СКАЧАТЬ SVG</button>
+      <button class="btn ghost" id="exPng">Скачать PNG ×2</button>
+      <button class="btn danger" id="resetAll" style="margin-top:4px">Сбросить все параметры</button>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="empty" id="empty">
+      <b>ЗАГРУЗИТЕ ШРИФТ</b>
+      <p>Инструмент разбирает файл на контуры глифов и гнёт их по огибающей. Формат ttf, otf или woff — woff2 не читается.</p>
+    </div>
+    <div class="nav">
+      <button class="navbtn" id="zoomOut" title="Уменьшить">–</button>
+      <button class="navbtn wide" id="zoomVal" title="Вернуть 100%">100%</button>
+      <button class="navbtn" id="zoomIn" title="Увеличить">+</button>
+      <button class="navbtn wide" id="fit" title="Вписать в экран">ВПИСАТЬ</button>
+    </div>
+    <div class="hud">
+      <div>ТОЧЕК: <b id="hudPts">0</b> · КОНТУРОВ: <b id="hudSub">0</b></div>
+      <div id="hudDrag"></div>
+    </div>
+  </main>
+</div>
+
+<dialog id="dlg">
+  <div class="dh"><span>КОД SVG</span><span>выделите и скопируйте</span></div>
+  <textarea id="dlgTxt" spellcheck="false"></textarea>
+  <div class="df"><button class="btn ghost" id="dlgClose">Закрыть</button></div>
+</dialog>
+
+<script>
+(function(){
+"use strict";
+
+var svg = document.getElementById('svg');
+var NS = 'http://www.w3.org/2000/svg';
+var font = null;
+
+/* ---------- состояние ---------- */
+var KEYS = ['c00','t1','t2','c10','r1','r2','c11','b2','b1','c01','l2','l1'];
+function defaultHandles(){
+  return {c00:[0,0], t1:[1/3,0], t2:[2/3,0], c10:[1,0],
+          r1:[1,1/3], r2:[1,2/3], c11:[1,1],
+          b2:[2/3,1], b1:[1/3,1], c01:[0,1], l2:[0,2/3], l1:[0,1/3]};
+}
+var S = {
+  text:'ИСКАЖЕНИЕ', size:180, track:0, softLead:100, align:'center', kern:true,
+  waveA:0, waveF:1, waveP:0, bulge:0, shear:0,
+  lines:[{text:'ИСКАЖЕНИЕ', scale:100, vscale:100, align:null, gap:120}],
+  main:0,
+  vscaleAll:100,
+  h:defaultHandles(), link:true, mode:'persp', box:'metrics', snap:true, vlock:false, kernMode:false, expFrame:true,
+  mesh:true, guides:false, outline:false, stroke:1.5, quality:8, inv:false, remember:true
+};
+var DEF = JSON.parse(JSON.stringify(S));
+var view = {x:-500,y:-300,w:1000,h:600};
+
+/* ---------- геометрия ---------- */
+function bez(p0,p1,p2,p3,t){
+  var m=1-t, a=m*m*m, b=3*m*m*t, c=3*m*t*t, d=t*t*t;
+  return [a*p0[0]+b*p1[0]+c*p2[0]+d*p3[0], a*p0[1]+b*p1[1]+c*p2[1]+d*p3[1]];
+}
+/* билинейный патч Кунса по 12 точкам */
+function coons(u,v,h){
+  var T=bez(h.c00,h.t1,h.t2,h.c10,u), B=bez(h.c01,h.b1,h.b2,h.c11,u);
+  var L=bez(h.c00,h.l1,h.l2,h.c01,v), R=bez(h.c10,h.r1,h.r2,h.c11,v);
+  var iu=1-u, iv=1-v;
+  return [
+    iv*T[0]+v*B[0] + iu*L[0]+u*R[0] - (iu*iv*h.c00[0]+u*iv*h.c10[0]+iu*v*h.c01[0]+u*v*h.c11[0]),
+    iv*T[1]+v*B[1] + iu*L[1]+u*R[1] - (iu*iv*h.c00[1]+u*iv*h.c10[1]+iu*v*h.c01[1]+u*v*h.c11[1])
+  ];
+}
+/* билинейная интерполяция только по углам */
+function bilin(h,u,v){
+  var iu=1-u, iv=1-v;
+  return [iu*iv*h.c00[0]+u*iv*h.c10[0]+u*v*h.c11[0]+iu*v*h.c01[0],
+          iu*iv*h.c00[1]+u*iv*h.c10[1]+u*v*h.c11[1]+iu*v*h.c01[1]];
+}
+/* гомография единичного квадрата в четырёхугольник — как Free Distort */
+function computeH(h){
+  var p0=h.c00, p1=h.c10, p2=h.c11, p3=h.c01;
+  var sx=p0[0]-p1[0]+p2[0]-p3[0], sy=p0[1]-p1[1]+p2[1]-p3[1];
+  if(Math.abs(sx)<1e-9 && Math.abs(sy)<1e-9){
+    return {a:p1[0]-p0[0], b:p3[0]-p0[0], c:p0[0],
+            d:p1[1]-p0[1], e:p3[1]-p0[1], f:p0[1], g:0, k:0};
+  }
+  var dx1=p1[0]-p2[0], dx2=p3[0]-p2[0], dy1=p1[1]-p2[1], dy2=p3[1]-p2[1];
+  var den=dx1*dy2-dy1*dx2;
+  if(Math.abs(den)<1e-12) return null;
+  var g=(sx*dy2-sy*dx2)/den, k=(dx1*sy-dy1*sx)/den;
+  return {a:p1[0]-p0[0]+g*p1[0], b:p3[0]-p0[0]+k*p3[0], c:p0[0],
+          d:p1[1]-p0[1]+g*p1[1], e:p3[1]-p0[1]+k*p3[1], f:p0[1], g:g, k:k};
+}
+function applyH(M,u,v){
+  var w=M.g*u+M.k*v+1;
+  if(Math.abs(w)<1e-6) w = w<0 ? -1e-6 : 1e-6;
+  return [(M.a*u+M.b*v+M.c)/w, (M.d*u+M.e*v+M.f)/w];
+}
+/* гомография корректна только на выпуклом четырёхугольнике */
+function isConvex(h){
+  var p=[h.c00,h.c10,h.c11,h.c01], s=0;
+  for(var i=0;i<4;i++){
+    var a=p[i], b=p[(i+1)%4], c=p[(i+2)%4];
+    var cr=(b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]);
+    if(Math.abs(cr)<1e-12) continue;
+    var sg = cr>0 ? 1 : -1;
+    if(s===0) s=sg; else if(sg!==s) return false;
+  }
+  return true;
+}
+var HMAT=null;
+function updateMatrix(){
+  HMAT = (S.mode==='persp' && isConvex(S.h)) ? computeH(S.h) : null;
+}
+/* перспектива по углам + отклонение рёбер от хорды из патча Кунса */
+function mapUV(u,v){
+  var C = coons(u,v,S.h);
+  if(!HMAT) return C;
+  var B = bilin(S.h,u,v), P = applyH(HMAT,u,v);
+  return [P[0]+C[0]-B[0], P[1]+C[1]-B[1]];
+}
+function warpUV(u,v){
+  if(S.bulge){ var uc=u<0?0:(u>1?1:u); v = 0.5 + (v-0.5)*(1 + S.bulge*Math.sin(Math.PI*uc)); }
+  if(S.waveA) v += S.waveA*Math.sin((u*S.waveF + S.waveP)*Math.PI*2);
+  if(S.shear) u += S.shear*(0.5-v);
+  return mapUV(u,v);
+}
+
+/* ---------- метрики шрифта ---------- */
+var METRICS = null;
+function glyphBox(chars){
+  for(var i=0;i<chars.length;i++){
+    var idx = font.charToGlyphIndex(chars[i]);
+    if(!idx) continue;
+    try{
+      var bb = font.glyphs.get(idx).getBoundingBox();
+      if(bb && isFinite(bb.y1) && isFinite(bb.y2) && (bb.y2-bb.y1)>0) return bb;
+    }catch(e){}
+  }
+  return null;
+}
+function computeMetrics(){
+  if(!font){ METRICS=null; return; }
+  var os2 = (font.tables && font.tables.os2) || {};
+  var flatCap = glyphBox(['Н','H','Е','E','П','I','B','Т']);
+  var flatX   = glyphBox(['н','x','и','z','п','v']);
+  var tallAsc = glyphBox(['б','l','h','k','b','d','f']);
+  var deep    = glyphBox(['у','р','p','y','g','q','ц','щ','j']);
+  /* измерение по плоским глифам надёжнее OS/2 — её часто заполняют небрежно */
+  var cap = (flatCap ? flatCap.y2 : 0) || (os2.sCapHeight>0 ? os2.sCapHeight : 0) || font.ascender*0.7;
+  var xh  = (flatX ? flatX.y2 : 0)  || (os2.sxHeight>0 ? os2.sxHeight : 0)  || cap*0.72;
+  var asc = tallAsc ? Math.max(tallAsc.y2, cap) : font.ascender;
+  /* та же проверка для верха: если «строчные» или «выносные» практически совпали
+     с прописными, значит их не измерить — лишние линии только путают классификацию */
+  if(asc < cap + 0.02*font.unitsPerEm) asc = cap;
+  if(xh > cap - 0.02*font.unitsPerEm) xh = cap;
+  var descRaw = deep ? Math.min(deep.y1, 0) : font.descender;
+  /* у титульных гарнитур в слотах строчных часто лежат прописные: измеренная
+     «глубина» тогда равна овершуту, а не выносному элементу. Настоящий выносной
+     уходит на 150–250‰ em, овершут — на 10–30‰, поэтому отсекаем по 60‰. */
+  var desc = descRaw < -0.06*font.unitsPerEm ? descRaw : 0;
+  METRICS = {cap:cap, xh:xh, asc:asc, desc:desc, upm:font.unitsPerEm};
+}
+function nearestIdx(list, v){
+  var bi=0, bd=Infinity;
+  for(var i=0;i<list.length;i++){ var d=Math.abs(list[i]-v); if(d<bd){ bd=d; bi=i; } }
+  return bi;
+}
+/* Вертикальные границы строятся по опорным линиям шрифта, а не по крайним точкам.
+   Каждый глиф относится к своей линии, овершуты и подрезки остаются снаружи рамки. */
+function metricExtents(){
+  if(!METRICS || !font) return null;
+  var LL = lineLayout();
+  var topRefs=[], topNames=[];
+  function addRef(v,n){
+    for(var i=0;i<topRefs.length;i++) if(Math.abs(topRefs[i]-v)<=1) return;
+    topRefs.push(v); topNames.push(n);
+  }
+  addRef(METRICS.cap,'высота прописных');
+  addRef(METRICS.xh,'высота строчных');
+  addRef(METRICS.asc,'верхние выносные');
+  var hasDesc = METRICS.desc < -1;
+  var minY=1e9, maxY=-1e9, nTop='', nBot='', used=false;
+  LL.forEach(function(ln){
+    var k = ln.size/METRICS.upm*ln.vs, base = ln.y;
+    Array.from(ln.text).forEach(function(ch){
+      if(!ch.trim()) return;
+      var idx = font.charToGlyphIndex(ch); if(!idx) return;
+      var bb; try{ bb = font.glyphs.get(idx).getBoundingBox(); }catch(e){ return; }
+      if(!bb || !isFinite(bb.y1) || !isFinite(bb.y2) || (bb.y2-bb.y1)<=0) return;
+      used = true;
+      var ti = nearestIdx(topRefs, bb.y2);
+      /* на линию выносных глиф уходит только если он опустился заметно ниже
+         половины пути до неё — иначе это овершут круглой и место ему на базовой */
+      var deepGlyph = hasDesc && bb.y1 < 0.45*METRICS.desc;
+      var ty = base - topRefs[ti]*k;
+      var by = base - (deepGlyph ? METRICS.desc : 0)*k;
+      if(ty < minY){ minY = ty; nTop = topNames[ti]; }
+      if(by > maxY){ maxY = by; nBot = deepGlyph ? 'нижние выносные' : 'базовая линия'; }
+    });
+  });
+  return used ? {top:minY, bottom:maxY, nTop:nTop, nBot:nBot} : null;
+}
+
+/* ---------- строки набора ---------- */
+/* строка — самостоятельная сущность: свой текст, кегль, отступ, выключка */
+function syncLines(){
+  if(!S.lines || !S.lines.length) S.lines = [{text:'', scale:100, vscale:100, align:null, gap:120}];
+  S.lines.forEach(function(L){ if(L.text===undefined) L.text=''; });
+  if(S.main===undefined || S.main<0 || S.main>=S.lines.length) S.main = 0;
+  S.text = S.lines.map(function(L){ return L.text; }).join('\n');
+  return S.lines.length;
+}
+/* кегль строки — % от общего; отступ — просвет до предыдущей строки в % от общего кегля.
+   Опорная строка стоит на нуле, остальные отсчитываются цепочкой от неё */
+function lineLayout(){
+  syncLines();
+  var capK = METRICS ? METRICS.cap/METRICS.upm : 0.7;
+  /* мягкий перенос (Shift+Enter) внутри строки: сущность разворачивается
+     в несколько рядов с общими параметрами, зазор между ними — её же отступ */
+  var out = [], mainRow = 0;
+  var softPct = (S.softLead===undefined ? 0 : S.softLead);   /* % от кегля строки */
+  S.lines.forEach(function(L, li){
+    var vs = Math.max(80, Math.min(120, L.vscale===undefined?100:L.vscale))/100;
+    var scaleRel = L.scale/100;
+    var parts = String(L.text).split('\n');
+    if(li === S.main) mainRow = out.length;
+    parts.forEach(function(t, k){
+      out.push({text:t, size:S.size*scaleRel, track:S.track,
+                align:(L.align||S.align), y:0, vs:vs,
+                gap:(k===0 ? L.gap : softPct), li:li});
+    });
+  });
+  var m = mainRow;
+  out[m].y = 0;
+  var capK = METRICS ? METRICS.cap/METRICS.upm : 0.7;
+  /* интерлиньяж от кегля (как в Фигме), но с поправкой на сжатие букв:
+     базовая едет вместе с высотой прописных, поэтому визуальный просвет
+     между краями строк не зависит от «Высота всех строк» */
+  for(var i=m+1;i<out.length;i++){
+    var lead = (out[i].gap/100)*out[i].size;
+    var shrink = capK*out[i].size*(1 - out[i].vs);   // насколько ниже стали буквы
+    out[i].y = out[i-1].y + lead - shrink;
+  }
+  for(var j=m-1;j>=0;j--){
+    var lead2 = (out[j+1].gap/100)*out[j+1].size;
+    var shrink2 = capK*out[j+1].size*(1 - out[j+1].vs);
+    out[j].y = out[j+1].y - lead2 + shrink2;
+  }
+  return out;
+}
+
+/* ---------- контуры текста ---------- */
+var LAYOUT_X = [];    /* фактические левый и правый край каждой строки */
+var GLYPH_HIT = [];   /* боксы букв в координатах текста для клика */
+var kernSel = null;   /* {li, j} выбранная буква для кернинга */
+/* сжатие глифов по вертикали относительно базовой линии строки */
+function squashY(cmds, base, vs){
+  return cmds.map(function(c){
+    var o={type:c.type};
+    if(c.x!==undefined){ o.x=c.x; o.y=base+(c.y-base)*vs; }
+    if(c.x1!==undefined){ o.x1=c.x1; o.y1=base+(c.y1-base)*vs; }
+    if(c.x2!==undefined){ o.x2=c.x2; o.y2=base+(c.y2-base)*vs; }
+    return o;
+  });
+}
+function buildPath(){
+  var LL = lineLayout();
+  GLYPH_HIT = [];
+  var data = LL.map(function(ln, li){
+    var sc = ln.size/font.unitsPerEm, trk = ln.track/100*ln.size;
+    var chars = Array.from(ln.text);
+    var glyphs = chars.map(function(c){return font.charToGlyph(c);});
+    var kern = (S.lines[li] && S.lines[li].kern) || {};
+    var adv=[], w=0;
+    for(var i=0;i<glyphs.length;i++){
+      var a = (glyphs[i].advanceWidth||0)*sc;
+      if(S.kern && i<glyphs.length-1){
+        try{ a += font.getKerningValue(glyphs[i],glyphs[i+1])*sc; }catch(e){}
+      }
+      a += trk;
+      if(kern[i]) a += kern[i]/100*ln.size;    // ручной кернинг после буквы i
+      adv.push(a); w += a;
+    }
+    if(adv.length) w -= trk;
+    return {chars:chars, adv:adv, w:w, ln:ln, trk:trk, li:li};
+  });
+  function offset(align, total, w){
+    return align==='center' ? (total-w)/2 : (align==='right' ? total-w : 0);
+  }
+  var maxW = Math.max.apply(null, data.map(function(d){return d.w;}).concat([1]));
+  var cmds = [];
+  LAYOUT_X = [];
+  data.forEach(function(d, li){
+    var x = offset(d.ln.align, maxW, d.w), x0 = x;
+    d.chars.forEach(function(ch,j){
+      if(ch !== ' '){
+        var cs = font.getPath(ch, x, d.ln.y, d.ln.size, {kerning:false}).commands;
+        if(d.ln.vs !== 1) cs = squashY(cs, d.ln.y, d.ln.vs);
+        cmds = cmds.concat(cs);
+      }
+      GLYPH_HIT.push({li:d.li, j:j, x0:x, x1:x+d.adv[j],
+                      yTop:d.ln.y-d.ln.size, yBot:d.ln.y+d.ln.size*0.3,
+                      gapX:x+d.adv[j], ln:d.ln});   // gapX — позиция стыка после буквы j
+      x += d.adv[j];
+    });
+    LAYOUT_X[li] = {x0:x0, x1:x - d.trk};
+  });
+  return cmds;
+}
+
+function flatten(cmds, q){
+  var step = 34/(q||S.quality), subs=[], cur=null, px=0,py=0,sx=0,sy=0;
+  function dist(ax,ay,bx,by){return Math.hypot(bx-ax,by-ay);}
+  function nSeg(len,mn){ var n=Math.ceil(len/step); return Math.max(mn, Math.min(n,200)); }
+  function close(){ if(cur && cur.pts.length>2) subs.push(cur); cur=null; }
+  for(var i=0;i<cmds.length;i++){
+    var c=cmds[i], a;
+    if(c.type==='M'){ close(); cur={pts:[[c.x,c.y]], segs:[]}; px=sx=c.x; py=sy=c.y; }
+    else if(!cur){ continue; }
+    else if(c.type==='L'){
+      a=cur.pts.length-1;
+      var n=nSeg(dist(px,py,c.x,c.y),4);
+      for(var k=1;k<=n;k++){var t=k/n;cur.pts.push([px+(c.x-px)*t, py+(c.y-py)*t]);}
+      cur.segs.push({a:a,b:cur.pts.length-1,line:true});
+      px=c.x;py=c.y;
+    }
+    else if(c.type==='C' || c.type==='Q'){
+      a=cur.pts.length-1;
+      var c1,c2,len;
+      if(c.type==='C'){
+        c1=[c.x1,c.y1]; c2=[c.x2,c.y2];
+        len=dist(px,py,c.x1,c.y1)+dist(c.x1,c.y1,c.x2,c.y2)+dist(c.x2,c.y2,c.x,c.y);
+      } else {
+        c1=[px+2/3*(c.x1-px), py+2/3*(c.y1-py)];
+        c2=[c.x+2/3*(c.x1-c.x), c.y+2/3*(c.y1-c.y)];
+        len=dist(px,py,c.x1,c.y1)+dist(c.x1,c.y1,c.x,c.y);
+      }
+      var n2=nSeg(len,10);
+      for(var k2=1;k2<=n2;k2++){ cur.pts.push(bez([px,py],c1,c2,[c.x,c.y],k2/n2)); }
+      cur.segs.push({a:a,b:cur.pts.length-1,line:false});
+      px=c.x;py=c.y;
+    }
+    else if(c.type==='Z'){
+      if(cur){
+        if(dist(px,py,sx,sy)>1e-6){
+          a=cur.pts.length-1;
+          var n3=nSeg(dist(px,py,sx,sy),4);
+          for(var k3=1;k3<=n3;k3++){var t3=k3/n3;cur.pts.push([px+(sx-px)*t3, py+(sy-py)*t3]);}
+          cur.segs.push({a:a,b:cur.pts.length-1,line:true});
+        }
+        close();
+      }
+      px=sx;py=sy;
+    }
+  }
+  close();
+  return subs;
+}
+
+/* ---------- рендер ---------- */
+var geo = {subs:[], bb:null, warped:[], d:'', pts:0};
+var PREV = null;
+
+function recompute(){
+  updateMatrix();
+  if(!font){ geo={subs:[],bb:null,warped:[],d:'',pts:0}; return; }
+  var subs = flatten(buildPath());
+  var minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9, pts=0;
+  subs.forEach(function(sp){ sp.pts.forEach(function(p){
+    pts++;
+    if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+    if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+  });});
+  if(pts===0){ geo={subs:[],bb:null,warped:[],d:'',pts:0}; return; }
+  if(S.box==='metrics'){
+    var M = metricExtents();
+    if(M && (M.bottom - M.top) > 1){ minY = M.top; maxY = M.bottom; }
+  }
+  var bb={x:minX,y:minY,w:Math.max(maxX-minX,1),h:Math.max(maxY-minY,1)};
+  /* точки хранятся в долях рамки: при изменении её размеров (число строк,
+     высота строк, кегль) тот же сдвиг даёт другой угол. Пересчитываем сдвиги,
+     чтобы углы рёбер оставались прежними */
+  var nLines = S.lines ? S.lines.length : 1;
+  if(PREV && (Math.abs(PREV.w-bb.w)>0.01 || Math.abs(PREV.h-bb.h)>0.01)){
+    var df = defaultHandles();
+    var kx = (PREV.w/bb.w)*(bb.h/PREV.h), ky = (PREV.h/bb.h)*(bb.w/PREV.w);
+    if(isFinite(kx) && isFinite(ky)) KEYS.forEach(function(key){
+      S.h[key] = [ df[key][0] + (S.h[key][0]-df[key][0])*kx,
+                   df[key][1] + (S.h[key][1]-df[key][1])*ky ];
+    });
+    updateMatrix();
+  }
+  PREV = {w:bb.w, h:bb.h, n:nLines};
+  var warped = subs.map(function(sp){
+    return sp.pts.map(function(p){
+      var q = warpUV((p[0]-bb.x)/bb.w, (p[1]-bb.y)/bb.h);
+      return [bb.x + q[0]*bb.w, bb.y + q[1]*bb.h];
+    });
+  });
+  var d='';
+  warped.forEach(function(sp){
+    d += 'M';
+    for(var i=0;i<sp.length;i++){ d += (i?'L':'') + sp[i][0].toFixed(2) + ' ' + sp[i][1].toFixed(2); }
+    d += 'Z';
+  });
+  geo = {subs:subs, bb:bb, warped:warped, d:d, pts:pts};
+  if(!(drag&&drag.key) && !(typeof pan!=='undefined' && pan.on)){ var cd = curvePathData(S.quality*2); if(cd) geo.d = cd; }
+  document.getElementById('hudPts').textContent = pts;
+  document.getElementById('hudSub').textContent = warped.length;
+}
+
+function hPos(k){ var bb=geo.bb; return [bb.x + S.h[k][0]*bb.w, bb.y + S.h[k][1]*bb.h]; }
+
+/* рёбра, прилегающие к углу: горизонтальное слева направо, вертикальное сверху вниз */
+var EDGES = {
+  c00:{h:['c00','c10'], v:['c00','c01']},
+  c10:{h:['c00','c10'], v:['c10','c11']},
+  c11:{h:['c01','c11'], v:['c10','c11']},
+  c01:{h:['c01','c11'], v:['c00','c01']}
+};
+/* округление угла: к кратному 5° при близости, иначе к целому — десятых нет */
+function quantAngle(a){
+  return Math.round(a);
+}
+/* ставим угол так, чтобы оба прилегающих ребра имели целые углы:
+   пересечение двух прямых, проведённых от неподвижных концов рёбер */
+function snapCorner(key, nu, nv){
+  var bb=geo.bb, e=EDGES[key];
+  var Px=bb.x+nu*bb.w, Py=bb.y+nv*bb.h;
+  var Aw = hPos(e.h[0]===key ? e.h[1] : e.h[0]);   // неподвижный конец гориз. ребра
+  var Bw = hPos(e.v[0]===key ? e.v[1] : e.v[0]);   // неподвижный конец верт. ребра
+  // текущие углы рёбер от неподвижных концов к точке
+  var hAng = -Math.atan2(Py-Aw[1], Px-Aw[0])*180/Math.PI;
+  var vAng =  Math.atan2(Px-Bw[0], Py-Bw[1])*180/Math.PI;
+  if(e.h[0]===key) hAng = -Math.atan2(Aw[1]-Py, Aw[0]-Px)*180/Math.PI;
+  if(e.v[0]===key) vAng =  Math.atan2(Bw[0]-Px, Bw[1]-Py)*180/Math.PI;
+  var h = quantAngle(hAng), v = quantAngle(vAng);
+  // пересечение двух лучей под целыми углами
+  var hr=-h*Math.PI/180, vr=v*Math.PI/180;
+  var dh=[Math.cos(hr), Math.sin(hr)], dv=[Math.sin(vr), Math.cos(vr)];
+  var den = dv[0]*dh[1] - dh[0]*dv[1];
+  if(Math.abs(den) < 1e-6) return [nu,nv];
+  var t = (dv[0]*(Bw[1]-Aw[1]) - (Bw[0]-Aw[0])*dv[1]) / den;
+  var qx = Aw[0] + t*dh[0], qy = Aw[1] + t*dh[1];
+  if(!isFinite(qx) || !isFinite(qy)) return [nu,nv];
+  if(Math.hypot(qx-Px, qy-Py) > 0.5*Math.max(bb.w,bb.h)) return [nu,nv];
+  return [(qx-bb.x)/bb.w, (qy-bb.y)/bb.h];
+}
+
+function cornerAngles(key){
+  var e=EDGES[key], a=hPos(e.h[0]), b=hPos(e.h[1]), c=hPos(e.v[0]), d=hPos(e.v[1]);
+  return {
+    h: -Math.atan2(b[1]-a[1], b[0]-a[0])*180/Math.PI,   // вверх вправо — плюс
+    v:  Math.atan2(d[0]-c[0], d[1]-c[1])*180/Math.PI    // завал вправо — плюс
+  };
+}
+
+function render(recalc){
+  if(recalc!==false) recompute(); else updateMatrix();
+  var empty = document.getElementById('empty');
+  empty.style.display = (font && geo.bb) ? 'none' : 'flex';
+  svg.innerHTML = '';
+  var stage = document.querySelector('.stage');
+  stage.style.background = S.inv ? '#f2f1ec' : '#16161a';
+  stage.classList.toggle('light', S.inv);
+  stage.classList.toggle('kern', S.kernMode);
+  updateZoomLabel();
+  scheduleSave();
+  if(!geo.bb) return;
+
+  var ink = S.inv ? '#16161a' : '#f4f3ef';
+  svg.setAttribute('viewBox', view.x+' '+view.y+' '+view.w+' '+view.h);
+  var k = view.w / Math.max(svg.clientWidth,1);   // единиц viewBox на пиксель
+
+  var g = document.createElementNS(NS,'g');
+  var path = document.createElementNS(NS,'path');
+  path.setAttribute('d', geo.d);
+  if(S.outline){ path.setAttribute('fill','none'); path.setAttribute('stroke',ink); path.setAttribute('stroke-width', S.stroke*k); }
+  else { path.setAttribute('fill', ink); }
+  path.setAttribute('fill-rule','nonzero');
+  g.appendChild(path);
+  svg.appendChild(g);
+
+  if(S.kernMode && kernSel){
+    var gh=null;
+    for(var gi=0;gi<GLYPH_HIT.length;gi++){
+      if(GLYPH_HIT[gi].li===kernSel.li && GLYPH_HIT[gi].j===kernSel.j){ gh=GLYPH_HIT[gi]; break; }
+    }
+    if(gh){
+      var bb2=geo.bb;
+      var q0=warpUV((gh.gapX-bb2.x)/bb2.w,(gh.yTop-bb2.y)/bb2.h);
+      var q1=warpUV((gh.gapX-bb2.x)/bb2.w,(gh.yBot-bb2.y)/bb2.h);
+      var cur=document.createElementNS(NS,'line');
+      cur.setAttribute('x1',(bb2.x+q0[0]*bb2.w).toFixed(1));
+      cur.setAttribute('y1',(bb2.y+q0[1]*bb2.h).toFixed(1));
+      cur.setAttribute('x2',(bb2.x+q1[0]*bb2.w).toFixed(1));
+      cur.setAttribute('y2',(bb2.y+q1[1]*bb2.h).toFixed(1));
+      cur.setAttribute('stroke','#2545f5');
+      cur.setAttribute('stroke-width', 2.5*(view.w/Math.max(svg.clientWidth,1)));
+      svg.appendChild(cur);
+      var kv=(S.lines[kernSel.li].kern && S.lines[kernSel.li].kern[kernSel.j])||0;
+      document.getElementById('hudDrag').innerHTML =
+        'КЕРНИНГ <b>'+(kv>0?'+':'')+kv.toFixed(1)+'%</b>';
+    }
+  } else if(S.kernMode){
+    document.getElementById('hudDrag').textContent='';
+  }
+
+  if(!S.mesh && !S.guides) return;
+
+  var bb=geo.bb, N=8;
+  if(S.mesh){
+  var meshG = document.createElementNS(NS,'g');
+  meshG.setAttribute('fill','none');
+  meshG.setAttribute('stroke', S.inv ? 'rgba(37,69,245,.35)' : 'rgba(120,140,255,.32)');
+  meshG.setAttribute('stroke-width', 1*k);
+  function line(pointsFn){
+    var d='', p;
+    for(var i=0;i<=40;i++){ p=pointsFn(i/40); d += (i?'L':'M') + (bb.x+p[0]*bb.w).toFixed(2) + ' ' + (bb.y+p[1]*bb.h).toFixed(2); }
+    var e=document.createElementNS(NS,'path'); e.setAttribute('d',d); meshG.appendChild(e);
+  }
+  for(var i=0;i<=N;i++){
+    (function(v){ line(function(t){return warpUV(t,v);}); })(i/N);
+    (function(u){ line(function(t){return warpUV(u,t);}); })(i/N);
+  }
+  svg.appendChild(meshG);
+  }
+
+  if(S.guides && METRICS){
+    var gg = document.createElementNS(NS,'g');
+    gg.setAttribute('fill','none');
+    gg.setAttribute('stroke', S.inv ? 'rgba(196,110,0,.85)' : 'rgba(255,176,32,.85)');
+    gg.setAttribute('stroke-width', 1*k);
+    gg.setAttribute('stroke-dasharray', (7*k)+' '+(4*k));
+    var nlL = lineLayout(), guides=[];
+    nlL.forEach(function(ln){
+      var km = ln.size/METRICS.upm*ln.vs, gbase = ln.y;
+      guides.push([gbase, 'базовая']);
+      guides.push([gbase-METRICS.cap*km, 'прописные']);
+      if(Math.abs(METRICS.xh-METRICS.cap)>1) guides.push([gbase-METRICS.xh*km, 'строчные']);
+      if(Math.abs(METRICS.asc-METRICS.cap)>1) guides.push([gbase-METRICS.asc*km, 'выносные']);
+      if(METRICS.desc<-1) guides.push([gbase-METRICS.desc*km, 'нижние']);
+    });
+    guides.forEach(function(gd, gj){
+      var v=(gd[0]-bb.y)/bb.h, d='', p;
+      for(var i=0;i<=24;i++){
+        p = warpUV(i/24, v);
+        d += (i?'L':'M') + (bb.x+p[0]*bb.w).toFixed(2) + ' ' + (bb.y+p[1]*bb.h).toFixed(2);
+      }
+      var e=document.createElementNS(NS,'path'); e.setAttribute('d',d); gg.appendChild(e);
+    });
+    svg.appendChild(gg);
+
+    /* замер фактической высоты прописных в начале и конце каждой строки */
+    var mg = document.createElementNS(NS,'g');
+    var mcol = S.inv ? 'rgba(196,110,0,.95)' : 'rgba(255,176,32,.95)';
+    nlL.forEach(function(ln, li){
+      var lx = LAYOUT_X[li];
+      if(!lx || !ln.text.trim() || Math.abs(lx.x1-lx.x0)<1e-6) return;
+      var km2 = ln.size/METRICS.upm*ln.vs;
+      var vTop = (ln.y - METRICS.cap*km2 - bb.y)/bb.h, vBase = (ln.y - bb.y)/bb.h;
+      [lx.x0, lx.x1].forEach(function(px, side){
+        var u = (px-bb.x)/bb.w;
+        var a = warpUV(u, vTop), b2 = warpUV(u, vBase);
+        var ax = bb.x+a[0]*bb.w, ay = bb.y+a[1]*bb.h;
+        var bx = bb.x+b2[0]*bb.w, by = bb.y+b2[1]*bb.h;
+        var e = document.createElementNS(NS,'line');
+        e.setAttribute('x1',ax); e.setAttribute('y1',ay);
+        e.setAttribute('x2',bx); e.setAttribute('y2',by);
+        e.setAttribute('stroke',mcol); e.setAttribute('stroke-width',1.5*k);
+        mg.appendChild(e);
+        var t = document.createElementNS(NS,'text');
+        t.setAttribute('x', (ax+bx)/2 + (side ? 8*k : -8*k));
+        t.setAttribute('y', (ay+by)/2 + 4*k);
+        t.setAttribute('text-anchor', side ? 'start' : 'end');
+        t.setAttribute('font-size', 12*k);
+        t.setAttribute('font-family','ui-monospace,Menlo,monospace');
+        t.setAttribute('fill', mcol); t.setAttribute('stroke','none');
+        t.textContent = Math.round(Math.hypot(bx-ax, by-ay));
+        mg.appendChild(t);
+      });
+
+      /* просвет между строками: от базовой линии верхней до прописной нижней */
+      if(li>0){
+        var pv = nlL[li-1];
+        var kmP = pv.size/METRICS.upm*pv.vs;
+        var topPrev = pv.y - METRICS.cap*kmP;     // прописная предыдущей
+        var yFrom, yTo;
+        if(ln.y < pv.y){                          // базовая текущей выше — строка сверху
+          yFrom = ln.y;                           // базовая текущей (верхней)
+          yTo   = topPrev;                        // прописная предыдущей (нижней)
+        } else {
+          yFrom = pv.y;                           // базовая предыдущей (верхней)
+          yTo   = ln.y - METRICS.cap*km2;         // прописная текущей (нижней)
+        }
+        var vFrom = (yFrom - bb.y)/bb.h, vTo = (yTo - bb.y)/bb.h;
+        [lx.x0, lx.x1].forEach(function(px, side){
+          var u = (px-bb.x)/bb.w;
+          var a = warpUV(u, vFrom), b2 = warpUV(u, vTo);
+          var ax = bb.x+a[0]*bb.w, ay = bb.y+a[1]*bb.h;
+          var bx = bb.x+b2[0]*bb.w, by = bb.y+b2[1]*bb.h;
+          var e = document.createElementNS(NS,'line');
+          e.setAttribute('x1',ax); e.setAttribute('y1',ay);
+          e.setAttribute('x2',bx); e.setAttribute('y2',by);
+          e.setAttribute('stroke',mcol); e.setAttribute('stroke-width',1*k);
+          e.setAttribute('stroke-dasharray',(3*k)+' '+(3*k));
+          mg.appendChild(e);
+          var t = document.createElementNS(NS,'text');
+          t.setAttribute('x', (ax+bx)/2 + (side ? 8*k : -8*k));
+          t.setAttribute('y', (ay+by)/2 + 4*k);
+          t.setAttribute('text-anchor', side ? 'start' : 'end');
+          t.setAttribute('font-size', 11*k);
+          t.setAttribute('font-family','ui-monospace,Menlo,monospace');
+          t.setAttribute('fill', mcol); t.setAttribute('stroke','none');
+          t.setAttribute('opacity','0.85');
+          t.textContent = Math.round(Math.hypot(bx-ax, by-ay));
+          mg.appendChild(t);
+        });
+      }
+    });
+    svg.appendChild(mg);
+  }
+
+  if(!S.mesh) return;
+
+  // усы от углов к контрольным точкам рёбер
+  var whisk = document.createElementNS(NS,'g');
+  whisk.setAttribute('stroke', S.inv?'rgba(25,26,30,.35)':'rgba(255,255,255,.28)');
+  whisk.setAttribute('stroke-width', 1*k);
+  whisk.setAttribute('stroke-dasharray', (3*k)+' '+(3*k));
+  [['c00','t1'],['c10','t2'],['c00','l1'],['c01','l2'],['c10','r1'],['c11','r2'],['c01','b1'],['c11','b2']].forEach(function(pair){
+    var a=hPos(pair[0]), b=hPos(pair[1]);
+    var e=document.createElementNS(NS,'line');
+    e.setAttribute('x1',a[0]);e.setAttribute('y1',a[1]);e.setAttribute('x2',b[0]);e.setAttribute('y2',b[1]);
+    whisk.appendChild(e);
+  });
+  svg.appendChild(whisk);
+
+  // точки
+  var hg = document.createElementNS(NS,'g');
+  KEYS.forEach(function(key){
+    var p=hPos(key), corner = key.charAt(0)==='c';
+    var e=document.createElementNS(NS, corner?'rect':'circle');
+    if(corner){
+      e.setAttribute('x',p[0]-5*k); e.setAttribute('y',p[1]-5*k);
+      e.setAttribute('width',10*k); e.setAttribute('height',10*k);
+    } else {
+      e.setAttribute('cx',p[0]); e.setAttribute('cy',p[1]); e.setAttribute('r',4.5*k);
+    }
+    e.setAttribute('fill', key===drag.key ? '#ff3b15' : (corner?'#2545f5':(S.inv?'#fff':'#16161a')));
+    e.setAttribute('stroke', key===drag.key ? '#ff3b15' : '#2545f5');
+    e.setAttribute('stroke-width', 1.5*k);
+    e.setAttribute('data-key', key);
+    e.style.cursor='grab';
+    hg.appendChild(e);
+  });
+  svg.appendChild(hg);
+
+  if(drag.key && drag.key.charAt(0)==='c'){
+    var A = cornerAngles(drag.key), p0 = hPos(drag.key);
+    var right = S.h[drag.key][0] > 0.5, below = S.h[drag.key][1] > 0.5;
+    var lab = document.createElementNS(NS,'g');
+    lab.setAttribute('fill','#ff3b15');
+    lab.setAttribute('stroke','none');
+    ['гориз '+A.h.toFixed(0)+'°', 'верт '+A.v.toFixed(0)+'°'].forEach(function(t,i){
+      var e=document.createElementNS(NS,'text');
+      e.setAttribute('x', p0[0] + (right?-14:14)*k);
+      e.setAttribute('y', p0[1] + (below ? 20+i*15 : -22+i*15)*k);
+      e.setAttribute('text-anchor', right?'end':'start');
+      e.setAttribute('font-size', 13*k);
+      e.setAttribute('font-family','ui-monospace,Menlo,monospace');
+      e.textContent = t;
+      lab.appendChild(e);
+    });
+    svg.appendChild(lab);
+  }
+}
+
+/* ---------- вписать ---------- */
+function fitView(){
+  if(!geo.bb) { recompute(); if(!geo.bb) return; }
+  var minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  geo.warped.forEach(function(sp){sp.forEach(function(p){
+    if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+    if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+  });});
+  if(S.mesh) KEYS.forEach(function(key){
+    var p=hPos(key);
+    if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+    if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+  });
+  var w=Math.max(maxX-minX,1), h=Math.max(maxY-minY,1), pad=Math.max(w,h)*0.09+20;
+  var cw=svg.clientWidth||1000, ch=svg.clientHeight||600, ar=cw/ch;
+  var vw=w+pad*2, vh=h+pad*2;
+  if(vw/vh < ar) vw = vh*ar; else vh = vw/ar;
+  view = {x:(minX+maxX)/2 - vw/2, y:(minY+maxY)/2 - vh/2, w:vw, h:vh};
+}
+
+/* ---------- масштаб и панорама ---------- */
+function unitsPerPx(){ return view.w / Math.max(svg.clientWidth,1); }
+function updateZoomLabel(){
+  var el=document.getElementById('zoomVal');
+  if(el) el.textContent = Math.round(100/unitsPerPx()) + '%';
+}
+function zoomAt(cx, cy, f){
+  var scale = 1/unitsPerPx(), ns = scale*f;
+  if(ns < 0.02) ns = 0.02;
+  if(ns > 80) ns = 80;
+  f = ns/scale;
+  if(Math.abs(f-1) < 1e-6) return;
+  var nw = view.w/f, nh = view.h/f;
+  view.x = cx - (cx-view.x)*(nw/view.w);
+  view.y = cy - (cy-view.y)*(nh/view.h);
+  view.w = nw; view.h = nh;
+}
+function zoomCenter(f){ zoomAt(view.x+view.w/2, view.y+view.h/2, f); render(false); }
+function zoomTo(scale){
+  var f = scale/(1/unitsPerPx());
+  zoomAt(view.x+view.w/2, view.y+view.h/2, f); render(false);
+}
+svg.addEventListener('wheel', function(ev){
+  ev.preventDefault();
+  var m = (ev.deltaMode===1 ? 16 : (ev.deltaMode===2 ? svg.clientHeight : 1));
+  if(ev.ctrlKey || ev.metaKey){
+    var p = toSvg(ev);
+    zoomAt(p.x, p.y, Math.pow(1.0025, -ev.deltaY*m));
+  } else {
+    var u = unitsPerPx();
+    if(ev.shiftKey && !ev.deltaX) view.x += ev.deltaY*m*u;
+    else { view.x += ev.deltaX*m*u; view.y += ev.deltaY*m*u; }
+  }
+  render(false);
+}, {passive:false});
+document.getElementById('zoomIn').addEventListener('click',function(){ zoomCenter(1.25); });
+document.getElementById('zoomOut').addEventListener('click',function(){ zoomCenter(1/1.25); });
+document.getElementById('zoomVal').addEventListener('click',function(){ zoomTo(1); });
+document.addEventListener('keydown', function(ev){
+  var t=ev.target.tagName;
+  if((ev.metaKey||ev.ctrlKey) && (ev.key==='z'||ev.key==='Z'||ev.key==='я'||ev.key==='Я')){
+    ev.preventDefault(); undo(); return;
+  }
+  if(t==='INPUT'||t==='TEXTAREA'||ev.metaKey||ev.ctrlKey) return;
+  if(ev.key==='='||ev.key==='+') { zoomCenter(1.25); }
+  else if(ev.key==='-'||ev.key==='_') { zoomCenter(1/1.25); }
+  else if(ev.key==='0') { fitView(); render(false); }
+  else if(ev.key==='1') { zoomTo(1); }
+  else return;
+  ev.preventDefault();
+});
+
+/* ---------- отмена ---------- */
+var UNDO=[];
+function pushUndo(){
+  UNDO.push(JSON.stringify(S.h));
+  if(UNDO.length>60) UNDO.shift();
+}
+function undo(){
+  if(!UNDO.length) return;
+  S.h = JSON.parse(UNDO.pop());
+  updateWarpState(); render();
+}
+
+/* ---------- перетаскивание точек ---------- */
+var drag = {key:null};
+var LINK = {
+  c00:[['t1',2/3],['t2',1/3],['l1',2/3],['l2',1/3]],
+  c10:[['t2',2/3],['t1',1/3],['r1',2/3],['r2',1/3]],
+  c11:[['b2',2/3],['b1',1/3],['r2',2/3],['r1',1/3]],
+  c01:[['b1',2/3],['b2',1/3],['l2',2/3],['l1',1/3]]
+};
+function toSvg(ev){
+  var pt = svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+var pan = {on:false, x:0, y:0, vx:0, vy:0};
+svg.addEventListener('pointerdown', function(ev){
+  var key = ev.target.getAttribute && ev.target.getAttribute('data-key');
+  if(S.kernMode && !key){
+    var hit = glyphAt(toSvg(ev));
+    if(hit){
+      pushUndo();
+      kernSel = {li:hit.li, j:hit.j};
+      kernDrag = {startX:ev.clientX,
+                  base:(S.lines[hit.li].kern && S.lines[hit.li].kern[hit.j]) || 0};
+      svg.setPointerCapture(ev.pointerId);
+      render();
+      return;
+    }
+    kernSel = null; render(); return;
+  }
+  if(!key){
+    pan.on=true; pan.x=ev.clientX; pan.y=ev.clientY; pan.vx=view.x; pan.vy=view.y;
+    svg.setPointerCapture(ev.pointerId);
+    document.querySelector('.stage').classList.add('panning');
+    return;
+  }
+  pushUndo();
+  drag.key=key; drag.start=[S.h[key][0], S.h[key][1]]; drag.axis=null;
+  svg.setPointerCapture(ev.pointerId);
+  document.getElementById('hudDrag').innerHTML = 'ТОЧКА <b>'+key.toUpperCase()+'</b>';
+  render();
+});
+var kernDrag = null;
+/* ближайший стык между буквами под точкой холста */
+function glyphAt(p){
+  if(!geo.bb) return null;
+  var bb=geo.bb, best=null;
+  for(var i=0;i<GLYPH_HIT.length;i++){
+    var g=GLYPH_HIT[i];
+    if(g.j >= Array.from(g.ln.text).length-1) continue;   // нет стыка после последней
+    var cy=(g.yTop+g.yBot)/2;
+    var q=warpUV((g.gapX-bb.x)/bb.w,(cy-bb.y)/bb.h);
+    var wx=bb.x+q[0]*bb.w, wy=bb.y+q[1]*bb.h;
+    var d=Math.hypot(p.x-wx, p.y-wy);
+    if(best===null || d<best.d) best={d:d, g:g};
+  }
+  if(best && best.d < geo.bb.h*0.6) return best.g;
+  return null;
+}
+svg.addEventListener('pointermove', function(ev){
+  if(kernDrag && kernSel){
+    var ln = S.lines[kernSel.li];
+    if(!ln.kern) ln.kern = {};
+    var dpx = (ev.clientX - kernDrag.startX) * unitsPerPx();
+    var size = S.size*(ln.scale/100);
+    var val = kernDrag.base + dpx/size*100;      // сдвиг в % от кегля строки
+    ln.kern[kernSel.j] = Math.round(val*10)/10;
+    render();
+    return;
+  }
+  if(pan.on){
+    var u = unitsPerPx();
+    view.x = pan.vx - (ev.clientX-pan.x)*u;
+    view.y = pan.vy - (ev.clientY-pan.y)*u;
+    render(false);
+    return;
+  }
+  if(!drag.key || !geo.bb) return;
+  var p = toSvg(ev), bb=geo.bb;
+  var nu = (p.x-bb.x)/bb.w, nv=(p.y-bb.y)/bb.h, axis='';
+  if(S.vlock && drag.start){
+    nu = drag.start[0]; axis='ВЕРТИКАЛЬ';       // фиксация по вертикали
+  } else if(ev.shiftKey && drag.start){
+    /* ось выбирается один раз за перетаскивание и дальше не переключается */
+    var mx = Math.abs(nu-drag.start[0])*bb.w, my = Math.abs(nv-drag.start[1])*bb.h;
+    if(!drag.axis && Math.max(mx,my) > 3*unitsPerPx()) drag.axis = mx>=my ? 'h' : 'v';
+    if(drag.axis==='h'){ nv=drag.start[1]; axis='ГОРИЗОНТАЛЬ'; }
+    else if(drag.axis==='v'){ nu=drag.start[0]; axis='ВЕРТИКАЛЬ'; }
+  } else {
+    drag.axis = null;
+  }
+  if(S.snap && drag.key.charAt(0)==='c'){ var q=snapCorner(drag.key, nu, nv); nu=q[0]; nv=q[1]; }
+  document.getElementById('hudDrag').innerHTML =
+    'ТОЧКА <b>'+drag.key.toUpperCase()+'</b>' + (axis ? ' · ОСЬ <b>'+axis+'</b>' : '') +
+    (drag.key.charAt(0)==='c' && geo.bb ?
+      ' · ГОР <b>'+cornerAngles(drag.key).h.toFixed(0)+'°</b> · ВЕРТ <b>'+cornerAngles(drag.key).v.toFixed(0)+'°</b>' : '');
+  var old = S.h[drag.key], dx=nu-old[0], dy=nv-old[1];
+  S.h[drag.key]=[nu,nv];
+  if(S.link && LINK[drag.key]) LINK[drag.key].forEach(function(pair){
+    var t=S.h[pair[0]]; S.h[pair[0]]=[t[0]+dx*pair[1], t[1]+dy*pair[1]];
+  });
+  updateWarpState(); render();
+});
+function endDrag(ev){
+  if(kernDrag){ kernDrag=null; }
+  if(pan.on){ pan.on=false; document.querySelector('.stage').classList.remove('panning'); }
+  if(!drag.key) return;
+  drag.key=null; drag.start=null; drag.axis=null; document.getElementById('hudDrag').textContent='';
+  render();
+}
+svg.addEventListener('pointerup', endDrag);
+svg.addEventListener('pointercancel', endDrag);
+svg.addEventListener('dblclick', function(ev){
+  var key = ev.target.getAttribute && ev.target.getAttribute('data-key');
+  if(!key){ fitView(); render(false); return; }
+  pushUndo(); S.h[key] = defaultHandles()[key]; updateWarpState(); render();
+});
+
+function updateWarpState(){
+  var def=defaultHandles(), moved=false;
+  KEYS.forEach(function(k){ if(Math.abs(S.h[k][0]-def[k][0])>1e-4||Math.abs(S.h[k][1]-def[k][1])>1e-4) moved=true; });
+  var fx = S.waveA||S.bulge||S.shear;
+  var t = moved && fx ? 'огибающая + фильтры' : moved ? 'огибающая' : fx ? 'фильтры' : 'без деформации';
+  if(S.mode==='persp' && !isConvex(S.h)) t = 'углы вывернуты · билинейно';
+  var ws=document.getElementById('warpState'); if(ws) ws.textContent = t;
+}
+
+/* ---------- пресеты ---------- */
+
+/* ---------- подгонка кривых (алгоритм Шнайдера) ---------- */
+function vsub(a,b){return [a[0]-b[0], a[1]-b[1]];}
+function vdot(a,b){return a[0]*b[0]+a[1]*b[1];}
+function vunit(a){var l=Math.hypot(a[0],a[1]); return l<1e-12?[0,0]:[a[0]/l,a[1]/l];}
+function bezAt(b,t){
+  var m=1-t;
+  return [m*m*m*b[0][0]+3*m*m*t*b[1][0]+3*m*t*t*b[2][0]+t*t*t*b[3][0],
+          m*m*m*b[0][1]+3*m*m*t*b[1][1]+3*m*t*t*b[2][1]+t*t*t*b[3][1]];
+}
+function chordParams(pts){
+  var u=[0];
+  for(var i=1;i<pts.length;i++) u.push(u[i-1]+Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]));
+  var tot=u[u.length-1]||1;
+  return u.map(function(v){return v/tot;});
+}
+function genBezier(pts,u,t1,t2){
+  var n=pts.length, p0=pts[0], p3=pts[n-1];
+  var C=[[0,0],[0,0]], X=[0,0];
+  for(var i=0;i<n;i++){
+    var t=u[i], m=1-t;
+    var b0=m*m*m, b1=3*m*m*t, b2=3*m*t*t, b3=t*t*t;
+    var a1=[t1[0]*b1, t1[1]*b1], a2=[t2[0]*b2, t2[1]*b2];
+    C[0][0]+=vdot(a1,a1); C[0][1]+=vdot(a1,a2); C[1][0]=C[0][1]; C[1][1]+=vdot(a2,a2);
+    var tmp=[pts[i][0]-(p0[0]*(b0+b1)+p3[0]*(b2+b3)), pts[i][1]-(p0[1]*(b0+b1)+p3[1]*(b2+b3))];
+    X[0]+=vdot(a1,tmp); X[1]+=vdot(a2,tmp);
+  }
+  var det=C[0][0]*C[1][1]-C[1][0]*C[0][1];
+  var al1=0, al2=0;
+  if(Math.abs(det)>1e-12){
+    al1=(X[0]*C[1][1]-X[1]*C[0][1])/det;
+    al2=(C[0][0]*X[1]-C[1][0]*X[0])/det;
+  }
+  var seg=Math.hypot(p3[0]-p0[0], p3[1]-p0[1]);
+  /* вырожденное или разбегающееся решение — откат на треть хорды */
+  if(!(al1>1e-6) || !(al2>1e-6) || al1>seg*3 || al2>seg*3){ al1=al2=seg/3; }
+  return [p0, [p0[0]+t1[0]*al1, p0[1]+t1[1]*al1], [p3[0]+t2[0]*al2, p3[1]+t2[1]*al2], p3];
+}
+function maxErr(pts,u,b){
+  var d=0, idx=Math.floor(pts.length/2);
+  for(var i=1;i<pts.length-1;i++){
+    var q=bezAt(b,u[i]), e=(q[0]-pts[i][0])*(q[0]-pts[i][0])+(q[1]-pts[i][1])*(q[1]-pts[i][1]);
+    if(e>d){ d=e; idx=i; }
+  }
+  return {d:Math.sqrt(d), i:idx};
+}
+function reparam(pts,u,b){
+  var b1=[vsub(b[1],b[0]).map(function(v){return v*3;}),
+          vsub(b[2],b[1]).map(function(v){return v*3;}),
+          vsub(b[3],b[2]).map(function(v){return v*3;})];
+  var b2=[vsub(b1[1],b1[0]).map(function(v){return v*2;}),
+          vsub(b1[2],b1[1]).map(function(v){return v*2;})];
+  return u.map(function(t,i){
+    var m=1-t;
+    var d=[m*m*b1[0][0]+2*m*t*b1[1][0]+t*t*b1[2][0], m*m*b1[0][1]+2*m*t*b1[1][1]+t*t*b1[2][1]];
+    var dd=[m*b2[0][0]+t*b2[1][0], m*b2[0][1]+t*b2[1][1]];
+    var q=vsub(bezAt(b,t), pts[i]);
+    var den=vdot(d,d)+vdot(q,dd);
+    if(Math.abs(den)<1e-12) return t;
+    var nt = t - vdot(q,d)/den;
+    if(!isFinite(nt)) return t;
+    return nt<0 ? 0 : (nt>1 ? 1 : nt);
+  });
+}
+/* касательная по трём точкам: на редкой выборке хорда даёт заметную ошибку угла */
+function endTangent(pts, atStart){
+  var n=pts.length;
+  if(atStart){
+    if(n>=3) return vunit([-3*pts[0][0]+4*pts[1][0]-pts[2][0], -3*pts[0][1]+4*pts[1][1]-pts[2][1]]);
+    return vunit(vsub(pts[1],pts[0]));
+  }
+  if(n>=3) return vunit([-(3*pts[n-1][0]-4*pts[n-2][0]+pts[n-3][0]), -(3*pts[n-1][1]-4*pts[n-2][1]+pts[n-3][1])]);
+  return vunit(vsub(pts[n-2],pts[n-1]));
+}
+function fitSeg(pts, tol, depth, out){
+  var n=pts.length;
+  if(n<2) return;
+  if(n===2){ out.push(['L', pts[1]]); return; }
+  var t1=endTangent(pts,true), t2=endTangent(pts,false);
+  var u=chordParams(pts), b=genBezier(pts,u,t1,t2), e=maxErr(pts,u,b);
+  var best=b, bestE=e.d;                       /* уточнение может ухудшить — держим лучшее */
+  for(var it=0; it<4 && bestE>tol; it++){
+    u=reparam(pts,u,b); b=genBezier(pts,u,t1,t2); e=maxErr(pts,u,b);
+    if(e.d<bestE){ bestE=e.d; best=b; }
+  }
+  b=best;
+  if(bestE<=tol || depth>=5){ out.push(['C', b[1], b[2], b[3]]); return; }
+  e=maxErr(pts, chordParams(pts), b);
+  var i=e.i; if(i<1) i=1; if(i>n-2) i=n-2;
+  fitSeg(pts.slice(0,i+1), tol, depth+1, out);
+  fitSeg(pts.slice(i), tol, depth+1, out);
+}
+function isStraight(pts, tol){
+  var a=pts[0], b=pts[pts.length-1], dx=b[0]-a[0], dy=b[1]-a[1];
+  var l=Math.hypot(dx,dy); if(l<1e-9) return false;
+  for(var i=1;i<pts.length-1;i++){
+    if(Math.abs((pts[i][0]-a[0])*dy - (pts[i][1]-a[1])*dx)/l > tol) return false;
+  }
+  return true;
+}
+/* исходная структура узлов сохраняется: подгоняем каждый сегмент шрифта отдельно */
+function curvePathData(q){
+  if(!geo.bb || !font) return '';
+  var bb = geo.bb, tol = Math.max(bb.h*0.0012, 0.005), d='';
+  var subs = flatten(buildPath(), q);
+  subs.forEach(function(sp){
+    var w = sp.pts.map(function(pt){
+      var t = warpUV((pt[0]-bb.x)/bb.w, (pt[1]-bb.y)/bb.h);
+      return [bb.x + t[0]*bb.w, bb.y + t[1]*bb.h];
+    });
+    d += 'M'+w[0][0].toFixed(2)+' '+w[0][1].toFixed(2);
+    sp.segs.forEach(function(sg){
+      var pts = w.slice(sg.a, sg.b+1);
+      if(pts.length<2) return;
+      if(sg.line && isStraight(pts, tol)){
+        var p=pts[pts.length-1];
+        d += 'L'+p[0].toFixed(2)+' '+p[1].toFixed(2);
+        return;
+      }
+      var out=[];
+      fitSeg(pts, tol, 0, out);
+      out.forEach(function(c){
+        if(c[0]==='L') d += 'L'+c[1][0].toFixed(2)+' '+c[1][1].toFixed(2);
+        else d += 'C'+c[1][0].toFixed(2)+' '+c[1][1].toFixed(2)+' '+
+                     c[2][0].toFixed(2)+' '+c[2][1].toFixed(2)+' '+
+                     c[3][0].toFixed(2)+' '+c[3][1].toFixed(2);
+      });
+    });
+    d += 'Z';
+  });
+  return d;
+}
+
+/* ---------- экспорт ---------- */
+/* габариты искажённой рамки: границы огибающей, без учёта чернил */
+function frameBounds(){
+  if(!geo.bb) return null;
+  var bb=geo.bb, nx=1e9, ny=1e9, xx=-1e9, xy=-1e9;
+  function add(u,v){
+    var q=warpUV(u,v), px=bb.x+q[0]*bb.w, py=bb.y+q[1]*bb.h;
+    if(px<nx)nx=px; if(px>xx)xx=px; if(py<ny)ny=py; if(py>xy)xy=py;
+  }
+  for(var i=0;i<=32;i++){ var t=i/32; add(t,0); add(t,1); add(0,t); add(1,t); }
+  return {x:nx, y:ny, w:Math.max(xx-nx,1), h:Math.max(xy-ny,1)};
+}
+function svgString(scale){
+  scale = scale||1;
+  var x,y,w,h;
+  var fb = S.expFrame ? frameBounds() : null;
+  if(fb){ x=fb.x; y=fb.y; w=fb.w; h=fb.h; }
+  else {
+    var minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+    geo.warped.forEach(function(sp){sp.forEach(function(p){
+      if(p[0]<minX)minX=p[0]; if(p[0]>maxX)maxX=p[0];
+      if(p[1]<minY)minY=p[1]; if(p[1]>maxY)maxY=p[1];
+    });});
+    var pad = 2;
+    x=minX-pad; y=minY-pad; w=(maxX-minX)+pad*2; h=(maxY-minY)+pad*2;
+  }
+  var ink = S.inv ? '#16161a' : '#ffffff';
+  var fill = S.outline ? 'fill="none" stroke="'+ink+'" stroke-width="'+S.stroke+'"' : 'fill="'+ink+'" fill-rule="nonzero"';
+  return '<svg xmlns="http://www.w3.org/2000/svg" overflow="visible" width="'+(w*scale).toFixed(0)+'" height="'+(h*scale).toFixed(0)+
+         '" viewBox="'+x.toFixed(2)+' '+y.toFixed(2)+' '+w.toFixed(2)+' '+h.toFixed(2)+'">\n  <path d="'+curvePathData(40)+'" '+fill+'/>\n</svg>';
+}
+function download(blob, name){
+  var url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click();
+  setTimeout(function(){URL.revokeObjectURL(url); a.remove();},400);
+}
+function baseName(){
+  return ((S.lines&&S.lines[0]&&S.lines[0].text)||'text').slice(0,24).replace(/[^\wА-Яа-яЁё-]+/g,'_') || 'warp';
+}
+
+/* ---------- числовые поля с протяжкой ---------- */
+function scrubbable(inp){
+  if(inp.dataset.scrub) return;
+  inp.dataset.scrub = '1';
+  var step = parseFloat(inp.step)||1, dec = (String(step).split('.')[1]||'').length;
+  var snap = inp.dataset.snap!==undefined ? parseFloat(inp.dataset.snap) : null;
+  function magnet(v){ return (snap!==null && Math.abs(v-snap)<=2) ? snap : v; }
+  inp.addEventListener('pointerdown', function(ev){
+    if(ev.button) return;
+    ev.preventDefault();
+    var sx=ev.clientX, v0=parseFloat(inp.value)||0, moved=false;
+    inp.setPointerCapture(ev.pointerId);
+    function clamp(v){
+      var mn=parseFloat(inp.min), mx=parseFloat(inp.max);
+      if(!isNaN(mn)) v=Math.max(v,mn);
+      if(!isNaN(mx)) v=Math.min(v,mx);
+      return v;
+    }
+    function mv(e){
+      var d=e.clientX-sx;
+      if(!moved && Math.abs(d)<3) return;
+      moved = true;
+      var unit = e.shiftKey ? step*10 : step;
+      inp.value = magnet(clamp(v0 + Math.round(d/2)*unit)).toFixed(dec);
+      inp.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    function up(){
+      inp.releasePointerCapture(ev.pointerId);
+      inp.removeEventListener('pointermove',mv);
+      inp.removeEventListener('pointerup',up);
+      if(moved) inp.dispatchEvent(new Event('change',{bubbles:true}));
+      else inp.focus({preventScroll:true});
+    }
+    inp.addEventListener('pointermove',mv);
+    inp.addEventListener('pointerup',up);
+  });
+  inp.addEventListener('keydown', function(ev){
+    if(ev.key!=='ArrowUp' && ev.key!=='ArrowDown') return;
+    ev.preventDefault();
+    var unit = ev.shiftKey ? step*10 : step;
+    var v = (parseFloat(inp.value)||0) + (ev.key==='ArrowUp'?unit:-unit);
+    var mn=parseFloat(inp.min), mx=parseFloat(inp.max);
+    if(!isNaN(mn)) v=Math.max(v,mn);
+    if(!isNaN(mx)) v=Math.min(v,mx);
+    inp.value = magnet(v).toFixed(dec);
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+    inp.dispatchEvent(new Event('change',{bubbles:true}));
+  });
+}
+function scrubAll(){ document.querySelectorAll('.num').forEach(scrubbable); }
+
+/* ---------- ввод ---------- */
+function bindRange(id, key, out, fmt, refit){
+  var r=document.getElementById(id), o=out?document.getElementById(out):null;
+  function upd(fit){ S[key]=parseFloat(r.value); if(o)o.textContent=(fmt?fmt(S[key]):S[key]); updateWarpState(); if(fit)fitView(); render(); }
+  r.addEventListener('input',function(){upd(false);});
+  if(refit) r.addEventListener('change',function(){upd(true);});
+  upd(false);
+}
+/* прогресс-заливка плашки под слайдером */
+function fillFor(r){
+  var row=r.closest('.row'); if(!row) return;
+  var f=row.querySelector('.fill');
+  if(!f){ f=document.createElement('div'); f.className='fill'; row.insertBefore(f, row.firstChild); }
+  var min=parseFloat(r.min), max=parseFloat(r.max), v=parseFloat(r.value);
+  var pct=(max>min)?(v-min)/(max-min)*100:0;
+  f.style.width=Math.max(0,Math.min(100,pct))+'%';
+}
+function initFills(){
+  document.querySelectorAll('.row input[type=range]').forEach(function(r){
+    fillFor(r);
+    r.addEventListener('input',function(){ fillFor(r); });
+  });
+}
+function pairNum(rangeId,numId,key){
+  var r=document.getElementById(rangeId), n=document.getElementById(numId);
+  function set(v,fit){
+    v=parseFloat(v); if(isNaN(v)) return;
+    S[key]=v; r.value=v; n.value=v; fillFor(r); if(fit)fitView(); render();
+  }
+  r.addEventListener('input',function(){set(r.value,false);});
+  r.addEventListener('change',function(){set(r.value,true);});
+  n.addEventListener('input',function(){set(n.value,false);});
+  n.addEventListener('change',function(){set(n.value,true);});
+}
+
+pairNum('track','trackN','track');
+pairNum('softLead','softLeadN','softLead');
+
+/* ---------- панель строк ---------- */
+var lineHost = document.getElementById('lineRows');
+function buildLineRows(){
+  var n = syncLines();
+  lineHost.innerHTML = '';
+  var head = document.createElement('div');
+  head.className = 'lrow lhead';
+  head.innerHTML = '<span></span><span>текст</span><span>кегль px</span><span>интерл.</span><span>выключка</span><span></span>';
+  lineHost.appendChild(head);
+  S.lines.forEach(function(L,i){
+    var al = L.align || S.align;
+    var r = document.createElement('div');
+    r.className = 'lrow';
+    r.draggable = true;
+    r.dataset.i = i;
+    r.innerHTML =
+      '<button class="lmain lgrip'+(i===S.main?' on':'')+'" data-act="main" title="опорная строка · тяните для переноса">●</button>'+
+      '<textarea class="ltext" data-f="text" spellcheck="false" rows="1">'+
+        String(L.text).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>'+
+      '<input class="num" data-f="capPx" type="number" step="1" min="1" value="'+lineCapPx(L)+'">'+
+      (i ? '<input class="num" data-f="gap" type="number" step="1" value="'+L.gap+'">'
+         : '<span class="lna">—</span>')+
+      '<span class="seg mini">'+
+        '<button data-a="left"'+(al==='left'?' class="on"':'')+'>Л</button>'+
+        '<button data-a="center"'+(al==='center'?' class="on"':'')+'>С</button>'+
+        '<button data-a="right"'+(al==='right'?' class="on"':'')+'>П</button></span>'+
+      '<button class="ldel" data-act="del" title="удалить">×</button>';
+    lineHost.appendChild(r);
+  });
+  scrubAll();
+  requestAnimationFrame(function(){
+    lineHost.querySelectorAll('.ltext').forEach(function(t){ autoGrow(t); });
+  });
+}
+function lineCapPx(L){
+  var capK = METRICS ? METRICS.cap/METRICS.upm : 0.7;
+  return Math.round(S.size*(L.scale/100)*capK);
+}
+function capPxToScale(px){
+  var capK = METRICS ? METRICS.cap/METRICS.upm : 0.7;
+  return Math.max(1, px/(S.size*capK)*100);
+}
+function autoGrow(ta){
+  if(!ta) return;
+  ta.style.height = '0px';
+  ta.style.height = Math.max(ta.scrollHeight, 20) + 'px';
+}
+/* перенос строки перетаскиванием */
+var dragRow = null;
+lineHost.addEventListener('keydown', function(ev){
+  if(ev.key!=='Enter') return;
+  var ta = ev.target;
+  if(!ta.classList || !ta.classList.contains('ltext')) return;
+  if(ev.shiftKey) return;              /* Shift+Enter — мягкий перенос внутри строки */
+  ev.preventDefault();                 /* Enter — новая строка-сущность */
+  document.getElementById('lineAdd').click();
+});
+lineHost.addEventListener('dragstart', function(ev){
+  var r = ev.target.closest('.lrow'); if(!r || r.classList.contains('lhead')) return;
+  if(ev.target.tagName === 'INPUT' || ev.target.tagName === 'TEXTAREA'){ ev.preventDefault(); return; }
+  dragRow = +r.dataset.i;
+  r.classList.add('drag');
+  ev.dataTransfer.effectAllowed = 'move';
+  try{ ev.dataTransfer.setData('text/plain', String(dragRow)); }catch(e){}
+});
+lineHost.addEventListener('dragover', function(ev){
+  if(dragRow===null) return;
+  ev.preventDefault();
+  var r = ev.target.closest('.lrow');
+  [].forEach.call(lineHost.children, function(c){ c.classList.remove('over'); });
+  if(r && !r.classList.contains('lhead')) r.classList.add('over');
+});
+lineHost.addEventListener('drop', function(ev){
+  if(dragRow===null) return;
+  ev.preventDefault();
+  var r = ev.target.closest('.lrow');
+  if(r && !r.classList.contains('lhead')){
+    var to = +r.dataset.i;
+    if(to !== dragRow) reorderLine(dragRow, to);
+  }
+  dragRow = null;
+});
+lineHost.addEventListener('dragend', function(){
+  dragRow = null;
+  [].forEach.call(lineHost.children, function(c){ c.classList.remove('drag','over'); });
+});
+/* отступ принадлежит стыку, а не строке: после переноса цепочка сохраняет зазоры */
+function reorderLine(from, to){
+  var gaps = S.lines.map(function(L){ return L.gap; });
+  var mainLine = S.lines[S.main];
+  var moved = S.lines.splice(from,1)[0];
+  S.lines.splice(to,0,moved);
+  S.lines.forEach(function(L,i){ L.gap = gaps[i]; });
+  S.main = S.lines.indexOf(mainLine);
+  buildLineRows(); fitView(); render();
+}
+function rowIndex(el){ return [].indexOf.call(lineHost.children, el.closest('.lrow')) - 1; }
+lineHost.addEventListener('input', function(ev){
+  var inp = ev.target;
+  if(inp.tagName!=='INPUT' && inp.tagName!=='TEXTAREA') return;
+  var i = rowIndex(inp); if(i<0 || !S.lines[i]) return;
+  if(inp.dataset.f === 'text'){
+    S.lines[i].text = inp.value; autoGrow(inp); fitView(); render(); return;
+  }
+  var v = parseFloat(inp.value);
+  if(isNaN(v)) return;
+  if(inp.dataset.f === 'capPx'){ S.lines[i].scale = capPxToScale(v); fitView(); render(); return; }
+  S.lines[i][inp.dataset.f] = v;
+  render();
+});
+lineHost.addEventListener('change', function(ev){
+  if(ev.target.tagName==='INPUT'){ fitView(); render(); }
+});
+lineHost.addEventListener('click', function(ev){
+  var b = ev.target.closest('button'); if(!b) return;
+  var i = rowIndex(b); if(i<0 || !S.lines[i]) return;
+  var act = b.dataset.act;
+  if(act==='del'){
+    if(S.lines.length<2) return;
+    S.lines.splice(i,1);
+    if(S.main>=S.lines.length) S.main=S.lines.length-1;
+    else if(S.main>i) S.main--;
+    buildLineRows(); fitView(); render(); return;
+  }
+  if(act==='main'){ S.main=i; buildLineRows(); render(); return; }
+  if(!b.dataset.a) return;
+  S.lines[i].align = b.dataset.a;
+  [].forEach.call(b.parentNode.children,function(c){ c.classList.toggle('on', c===b); });
+  fitView(); render();
+});
+document.getElementById('lineAdd').addEventListener('click', function(){
+  syncLines();
+  var last = S.lines[S.lines.length-1];
+  S.lines.push({text:'', scale:last.scale, vscale:last.vscale, align:last.align, gap:last.gap||120});
+  buildLineRows(); fitView(); render();
+  var rows = lineHost.querySelectorAll('.ltext');
+  if(rows.length) rows[rows.length-1].focus();
+});
+
+function setAllVscale(v, fit){
+  S.vscaleAll = v;
+  syncLines();
+  S.lines.forEach(function(L){ L.vscale = v; });
+  lineHost.querySelectorAll('input[data-f="vscale"]').forEach(function(i){ i.value = v; });
+  if(fit) fitView();
+  render();
+}
+/* сторона рамки, которая ближе к горизонтали — от неё и растём */
+function flatEdge(){
+  if(!geo.bb) return null;
+  var t0=hPos('c00'), t1=hPos('c10'), b0=hPos('c01'), b1=hPos('c11');
+  var topTilt=Math.abs(t1[1]-t0[1]), botTilt=Math.abs(b1[1]-b0[1]);
+  var top = topTilt<=botTilt;
+  return { y:(top ? (t0[1]+t1[1]) : (b0[1]+b1[1]))/2, top:top };
+}
+/* угол наклона строки = наклон бокового (левого) ребра рамки от вертикали */
+function slopeAngle(){
+  if(!geo.bb) return null;
+  var a=hPos('c00'), b=hPos('c01');
+  return Math.atan2(b[0]-a[0], b[1]-a[1])*180/Math.PI;
+}
+(function(){
+  var r=document.getElementById('vsAll'), n=document.getElementById('vsAllN'),
+      info=document.getElementById('vsInfo'), ref=null;
+  function set(v, fit){
+    v=parseFloat(v); if(isNaN(v)) return;
+    if(Math.abs(v-100)<=2) v=100;
+    v=Math.max(80,Math.min(120,v));
+    if(ref===null) ref={v:S.vscaleAll, a:slopeAngle()};
+    var e0=flatEdge();
+    r.value=v; n.value=v; fillFor(r); setAllVscale(v, fit);
+    var e1=flatEdge();
+    if(e0 && e1){ view.y += (e1.y-e0.y); render(false); }
+
+  }
+  r.addEventListener('pointerdown',function(){ ref=null; });
+  n.addEventListener('pointerdown',function(){ ref=null; });
+  r.addEventListener('input',function(){set(r.value,false);});
+  r.addEventListener('change',function(){set(r.value,false);});
+  n.addEventListener('input',function(){set(n.value,false);});
+  n.addEventListener('change',function(){set(n.value,false);});
+})();
+
+
+document.getElementById('mode').addEventListener('click',function(ev){
+  var b=ev.target.closest('button'); if(!b) return;
+  S.mode=b.dataset.m;
+  [].forEach.call(this.children,function(c){c.classList.toggle('on', c===b);});
+  updateWarpState(); fitView(); render();
+});
+document.getElementById('boxMetrics').addEventListener('change',function(){
+  S.box = this.checked ? 'metrics' : 'ink';
+  fitView(); render();
+});
+document.getElementById('resetHandles').addEventListener('click',function(){
+  pushUndo(); S.h = defaultHandles(); updateWarpState(); fitView(); render();
+});
+document.getElementById('kernReset').addEventListener('click',function(){
+  pushUndo();
+  S.lines.forEach(function(L){ L.kern = {}; });
+  kernSel = null; render();
+});
+['kern','kernMode','snap','vlock','expFrame','mesh','guides','inv'].forEach(function(id){
+  document.getElementById(id).addEventListener('change',function(){
+    S[id]=this.checked;
+    if(id==='kernMode' && !this.checked) kernSel=null;
+    render();
+  });
+});
+document.getElementById('fit').addEventListener('click',function(){ fitView(); render(); });
+
+document.getElementById('exSvg').addEventListener('click',function(){
+  if(!geo.bb) return;
+  download(new Blob([svgString()],{type:'image/svg+xml'}), baseName()+'.svg');
+});
+function showCode(s){
+  document.getElementById('dlgTxt').value=s;
+  document.getElementById('dlg').showModal();
+}
+document.getElementById('dlgClose').addEventListener('click',function(){document.getElementById('dlg').close();});
+
+document.getElementById('exPng').addEventListener('click',function(){
+  if(!geo.bb) return;
+  var s=svgString(2), img=new Image();
+  img.onload=function(){
+    var c=document.createElement('canvas');
+    c.width=img.width||1000; c.height=img.height||600;
+    var ctx=c.getContext('2d');
+    ctx.fillStyle = S.inv ? '#f2f1ec' : '#16161a';
+    ctx.fillRect(0,0,c.width,c.height);
+    ctx.drawImage(img,0,0,c.width,c.height);
+    c.toBlob(function(b){ download(b, baseName()+'@2x.png'); });
+  };
+  img.onerror=function(){ showCode(svgString()); };
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(s);
+});
+
+/* ---------- память между сессиями ---------- */
+var STORE = (typeof window!=='undefined' && window.storage && typeof window.storage.get==='function') ? window.storage : null;
+var K_FONT='typewarp:font', K_STATE='typewarp:state';
+var MAX_B64 = 4.4*1024*1024;
+var lastFontBlob = null;
+var memInfo = document.getElementById('memInfo');
+var forgetBtn = document.getElementById('forget');
+
+var memTimer=null;
+function memSay(t, keep){
+  memInfo.innerHTML = t;
+  clearTimeout(memTimer);
+  if(t && !keep) memTimer = setTimeout(function(){ memInfo.innerHTML=''; }, 5000);
+}
+function b64FromBuf(buf){
+  var bytes=new Uint8Array(buf), chunk=0x8000, parts=[];
+  for(var i=0;i<bytes.length;i+=chunk) parts.push(String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)));
+  return btoa(parts.join(''));
+}
+function bufFromB64(s){
+  var bin=atob(s), out=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i);
+  return out.buffer;
+}
+function kb(n){ return n>=1048576 ? (n/1048576).toFixed(1)+' МБ' : Math.round(n/1024)+' КБ'; }
+
+function saveFont(buf, name){
+  if(!STORE || !S.remember) return;
+  var b64;
+  try{ b64 = b64FromBuf(buf); }catch(e){ return; }
+  if(b64.length > MAX_B64){
+    memSay('Файл больше 4 МБ — в памяти не сохранён, после обновления загрузите заново.');
+    return;
+  }
+  lastFontBlob = {name:name, size:buf.byteLength, b64:b64};
+  STORE.set(K_FONT, JSON.stringify(lastFontBlob), false)
+    .then(function(){ memSay('Шрифт в памяти — '+kb(buf.byteLength)+'. Обновление страницы его не сотрёт.'); })
+    .catch(function(){ memSay('Не удалось записать шрифт в память.'); });
+}
+var saveTimer=null, storeReady=false;
+function scheduleSave(){
+  if(!STORE || !storeReady) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function(){
+    var payload = {remember:false};
+    if(S.remember){ payload = JSON.parse(JSON.stringify(S)); payload.v = 8; }
+    STORE.set(K_STATE, JSON.stringify(payload), false).catch(function(){});
+  }, 700);
+}
+function forgetAll(){
+  if(!STORE) return;
+  lastFontBlob=null;
+  STORE.delete(K_FONT,false).catch(function(){});
+  STORE.delete(K_STATE,false).catch(function(){});
+  memSay('Память очищена.');
+}
+forgetBtn.addEventListener('click', function(){ forgetAll(); });
+document.getElementById('remember').addEventListener('change', function(){
+  S.remember = this.checked;
+  if(!S.remember){ forgetAll(); memSay('Ничего не запоминаю.'); }
+  else {
+    memSay('');
+    if(font && lastFontBlob) STORE && STORE.set(K_FONT, JSON.stringify(lastFontBlob), false).catch(function(){});
+    scheduleSave();
+  }
+});
+
+function restore(){
+  if(!STORE){
+    S.remember = false;
+    forgetBtn.disabled = true;
+    document.getElementById('remember').checked = false;
+    document.getElementById('remember').disabled = true;
+    memSay('Постоянная память недоступна в этом окружении — шрифт живёт до перезагрузки.', true);
+    return;
+  }
+  STORE.get(K_STATE,false).then(function(r){
+    if(!r || !r.value) return;
+    var saved = JSON.parse(r.value);
+    /* состояния старых сборок могли зафиксировать режимы, которых тогда ещё не было —
+       их не восстанавливаем, иначе новая логика молча не включится */
+    if(saved.v !== 8){
+      delete saved.box; delete saved.mode; delete saved.guides; delete saved.track;
+      /* строки старого формата: текст лежал отдельно, разносим по строкам */
+      if(saved.lines && saved.text!==undefined){
+        var parts = String(saved.text).split('\n');
+        saved.lines = saved.lines.map(function(L,i){
+          L.text = parts[i]!==undefined ? parts[i] : '';
+          return L;
+        });
+      } else delete saved.lines;
+      if(saved.main===undefined) saved.main = 0;
+    }
+    Object.keys(saved).forEach(function(k){ if(k in S) S[k]=saved[k]; });
+    syncUI(); updateWarpState(); render();
+  }).catch(function(){}).then(function(){
+    if(!S.remember){ memSay('Ничего не запоминаю.'); return; }
+    return STORE.get(K_FONT,false).then(function(r){
+      if(!r || !r.value) return;
+      var f = JSON.parse(r.value);
+      lastFontBlob = f;
+      loadBuffer(bufFromB64(f.b64), f.name, true);
+      memSay('Шрифт восстановлен из памяти — '+kb(f.size)+'.');
+    }).catch(function(){});
+  }).catch(function(){}).then(function(){ storeReady = true; });
+}
+
+/* ---------- сохранённые состояния ---------- */
+var K_PRESETS='typewarp:presets', PRESETS=[];
+var presetList=document.getElementById('presetList');
+var presetName=document.getElementById('presetName');
+
+function presetSnapshot(){
+  var o=JSON.parse(JSON.stringify(S));
+  delete o.remember; delete o.vscaleAll;
+  return o;
+}
+/* зеркальные варианты огибающей: точки меняются местами так,
+   чтобы сохранился порядок обхода и роли контрольных точек рёбер */
+function mirrorX(h){
+  function P(k){ return [1-h[k][0], h[k][1]]; }
+  return {c00:P('c10'), t1:P('t2'), t2:P('t1'), c10:P('c00'),
+          r1:P('l1'), r2:P('l2'), c11:P('c01'), b2:P('b1'), b1:P('b2'),
+          c01:P('c11'), l2:P('r2'), l1:P('r1')};
+}
+function mirrorY(h){
+  function P(k){ return [h[k][0], 1-h[k][1]]; }
+  return {c00:P('c01'), t1:P('b1'), t2:P('b2'), c10:P('c11'),
+          r1:P('r2'), r2:P('r1'), c11:P('c10'), b2:P('t2'), b1:P('t1'),
+          c01:P('c00'), l2:P('l1'), l1:P('l2')};
+}
+/* иконка: силуэт огибающей, вписанный в рамку превью */
+function presetIcon(st, ar){
+  var h = st && st.h; if(!h) return '';
+  ar = (isFinite(ar) && ar>0.05) ? ar : 4;
+  var pts=[];
+  function edge(a,b,c,d){
+    for(var i=0;i<=12;i++){ var q=bez(h[a],h[b],h[c],h[d],i/12); pts.push([q[0]*ar, q[1]]); }
+  }
+  edge('c00','t1','t2','c10');
+  edge('c10','r1','r2','c11');
+  edge('c11','b2','b1','c01');
+  edge('c01','l2','l1','c00');
+  var nx=1e9,ny=1e9,xx=-1e9,xy=-1e9;
+  pts.forEach(function(q){
+    if(!isFinite(q[0])||!isFinite(q[1])) return;
+    if(q[0]<nx)nx=q[0]; if(q[0]>xx)xx=q[0];
+    if(q[1]<ny)ny=q[1]; if(q[1]>xy)xy=q[1];
+  });
+  var w=Math.max(xx-nx,1e-6), hh=Math.max(xy-ny,1e-6);
+  var W=28, H=19, pad=2.5;
+  var k=Math.min((W-pad*2)/w, (H-pad*2)/hh);
+  var ox=(W-w*k)/2 - nx*k, oy=(H-hh*k)/2 - ny*k;
+  var d='';
+  pts.forEach(function(q,i){
+    d += (i?'L':'M') + (q[0]*k+ox).toFixed(1) + ' ' + (q[1]*k+oy).toFixed(1);
+  });
+  return '<svg class="picon" viewBox="0 0 '+W+' '+H+'"><path d="'+d+'Z" fill="currentColor"/></svg>';
+}
+function renderPresets(){
+  presetList.innerHTML='';
+  if(!PRESETS.length){
+    presetList.innerHTML='<div class="hint" style="margin-top:8px">Сохраняются все настройки, кроме самого файла шрифта.</div>';
+    return;
+  }
+  PRESETS.forEach(function(pr,i){
+    var r=document.createElement('div');
+    r.className='prow';
+    r.innerHTML=presetIcon(pr.state, pr.ar)+
+      '<button class="pname" title="применить"></button><button class="pdel" title="удалить">×</button>';
+    r.querySelector('.pname').textContent=pr.name;
+    r.querySelector('.pname').addEventListener('click',function(){ applyPreset(i); });
+    r.querySelector('.pdel').addEventListener('click',function(){
+      PRESETS.splice(i,1); persistPresets(); renderPresets();
+    });
+    presetList.appendChild(r);
+  });
+}
+function applyPreset(i){
+  var st=PRESETS[i] && PRESETS[i].state; if(!st) return;
+  pushUndo();
+  Object.keys(st).forEach(function(k){ if(k in S) S[k]=st[k]; });
+  syncUI(); updateWarpState(); fitView(); render();
+}
+function persistPresets(){
+  if(!STORE) return;
+  STORE.set(K_PRESETS, JSON.stringify(PRESETS), false).catch(function(){});
+}
+document.getElementById('presetSave').addEventListener('click',function(){
+  var nm=(presetName.value||'').trim() || ('состояние '+(PRESETS.length+1));
+  var ex=-1;
+  PRESETS.forEach(function(p,i){ if(p.name===nm) ex=i; });
+  var rec={name:nm, state:presetSnapshot(), ar:(geo.bb ? geo.bb.w/geo.bb.h : 4)};
+  if(ex>=0) PRESETS[ex]=rec; else PRESETS.push(rec);
+  presetName.value='';
+  persistPresets(); renderPresets();
+});
+document.getElementById('presetMirror').addEventListener('click',function(){
+  var base=(presetName.value||'').trim() || 'вариант';
+  var ar=(geo.bb ? geo.bb.w/geo.bb.h : 4);
+  var h0=JSON.parse(JSON.stringify(S.h));
+  var set=[
+    {suf:'', h:h0},
+    {suf:' · зеркально', h:mirrorX(h0)},
+    {suf:' · вниз', h:mirrorY(h0)},
+    {suf:' · вниз зеркально', h:mirrorY(mirrorX(h0))}
+  ];
+  set.forEach(function(v){
+    var st=presetSnapshot(); st.h=v.h;
+    var nm=base+v.suf, ex=-1;
+    PRESETS.forEach(function(p,i){ if(p.name===nm) ex=i; });
+    var rec={name:nm, state:st, ar:ar};
+    if(ex>=0) PRESETS[ex]=rec; else PRESETS.push(rec);
+  });
+  presetName.value='';
+  persistPresets(); renderPresets();
+});
+presetName.addEventListener('keydown',function(ev){
+  if(ev.key==='Enter'){ ev.preventDefault(); document.getElementById('presetSave').click(); }
+});
+function loadPresets(){
+  if(!STORE){ renderPresets(); return; }
+  STORE.get(K_PRESETS,false).then(function(r){
+    if(r && r.value){ var a=JSON.parse(r.value); if(Array.isArray(a)) PRESETS=a; }
+  }).catch(function(){}).then(function(){ renderPresets(); });
+}
+
+/* ---------- загрузка шрифта ---------- */
+function loadBuffer(buf, name, fromStore){
+  try{
+    font = opentype.parse(buf);
+  }catch(err){
+    document.getElementById('fontinfo').innerHTML='<b style="color:#c0281a">Не читается.</b> Возможно woff2 — пересохраните в ttf/otf.';
+    return;
+  }
+  computeMetrics();
+  var fam = (font.names.fullName && (font.names.fullName.ru||font.names.fullName.en)) ||
+            (font.names.fontFamily && (font.names.fontFamily.ru||font.names.fontFamily.en)) || name;
+  document.getElementById('dropTitle').textContent='Заменить шрифт';
+  document.getElementById('fontinfo').innerHTML = '<b>'+fam+'</b>';
+  fitView(); render(); fitView(); render();
+  if(!fromStore) saveFont(buf, name);
+}
+function readFile(f){
+  if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){ loadBuffer(r.result, f.name); };
+  r.readAsArrayBuffer(f);
+}
+var drop=document.getElementById('drop'), fileInput=document.getElementById('file');
+drop.addEventListener('click',function(){fileInput.click();});
+fileInput.addEventListener('change',function(){readFile(this.files[0]);});
+['dragenter','dragover'].forEach(function(e){
+  drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('over');});
+});
+['dragleave','drop'].forEach(function(e){
+  drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove('over');});
+});
+drop.addEventListener('drop',function(ev){ readFile(ev.dataTransfer.files[0]); });
+window.addEventListener('dragover',function(e){e.preventDefault();});
+window.addEventListener('drop',function(e){e.preventDefault(); if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);});
+
+/* ---------- сброс ---------- */
+function syncUI(){
+  ['track','softLead'].forEach(function(k){
+    var el=document.getElementById(k); if(el) el.value=S[k];
+  });
+  document.getElementById('trackN').value=S.track;
+  document.getElementById('softLead').value=S.softLead;
+  document.getElementById('softLeadN').value=S.softLead;
+  document.getElementById('vsAll').value=S.vscaleAll;
+  document.getElementById('vsAllN').value=S.vscaleAll;
+  if(typeof initFills==='function') document.querySelectorAll('.row input[type=range]').forEach(fillFor);
+  ['kern','kernMode','snap','vlock','expFrame','mesh','guides','inv','remember'].forEach(function(id){ document.getElementById(id).checked=S[id]; });
+  buildLineRows();
+  [].forEach.call(document.getElementById('mode').children,function(c){
+    c.classList.toggle('on', c.dataset.m===S.mode);
+  });
+  document.getElementById('boxMetrics').checked = (S.box==='metrics');
+}
+var resetBtn=document.getElementById('resetAll'), armed=null;
+resetBtn.addEventListener('click',function(){
+  if(!armed){
+    armed=setTimeout(function(){ armed=null; resetBtn.classList.remove('armed'); resetBtn.textContent='Сбросить все параметры'; },3000);
+    resetBtn.classList.add('armed'); resetBtn.textContent='Точно сбросить?';
+    return;
+  }
+  clearTimeout(armed); armed=null;
+  resetBtn.classList.remove('armed'); resetBtn.textContent='Сбросить все параметры';
+  var keepLines=JSON.parse(JSON.stringify(S.lines)), keepMain=S.main, keepMem=S.remember;
+  S = JSON.parse(JSON.stringify(DEF));
+  S.lines = keepLines; S.main = keepMain;
+  S.remember = keepMem;
+  drag={key:null,start:null,axis:null};
+  syncUI(); updateWarpState(); fitView(); render();
+});
+
+window.addEventListener('resize',function(){ if(font){fitView();render();} });
+
+if(typeof opentype==='undefined'){
+  document.getElementById('empty').innerHTML='<b>БИБЛИОТЕКА НЕ ЗАГРУЗИЛАСЬ</b><p>opentype.js не подтянулся с CDN — проверьте сеть и перезагрузите.</p>';
+}
+buildLineRows();
+scrubAll();
+renderPresets();
+initFills();
+render();
+restore();
+loadPresets();
+})();
+</script>
+</body>
+</html>
