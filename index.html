@@ -374,8 +374,8 @@ dialog .df{padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8
         <input type="range" id="track" min="-10" max="10" step="0.1" value="0">
       </div>
       <div class="row">
-        <label><span>Line height</span><input class="num" id="softLeadN" type="number" min="0" max="300" step="1" value="100"></label>
-        <input type="range" id="softLead" min="0" max="300" step="1" value="100">
+        <label title="Spacing between separate text fields, % of size"><span>Line height</span><input class="num" id="softLeadN" type="number" min="0" max="300" step="1" value="120"></label>
+        <input type="range" id="softLead" min="0" max="300" step="1" value="120">
       </div>
       <div class="row">
         <label><span>Vertical stretch</span><input class="num" id="vsAllN" type="number" min="80" max="120" step="1" data-snap="100" value="100"></label>
@@ -479,9 +479,9 @@ function defaultHandles(){
           b2:[2/3,1], b1:[1/3,1], c01:[0,1], l2:[0,2/3], l1:[0,1/3]};
 }
 var S = {
-  text:'TYPE WARP', size:180, track:0, softLead:100, align:'center', kern:true,
+  text:'TYPE WARP', size:180, track:0, softLead:120, align:'center', kern:true,
   waveA:0, waveF:1, waveP:0, bulge:0, shear:0,
-  lines:[{text:'TYPE WARP', scale:100, vscale:100, align:null, gap:120}],
+  lines:[{text:'TYPE WARP', scale:100, vscale:100, align:null, gap:100}],
   main:0,
   vscaleAll:100,
   h:defaultHandles(), link:true, mode:'persp', box:'metrics', capBox:true, snap:true, vlock:false, kernMode:false, expFrame:true,
@@ -658,7 +658,7 @@ function metricExtents(){
 /* ---------- строки набора ---------- */
 /* строка — самостоятельная сущность: свой текст, кегль, отступ, выключка */
 function syncLines(){
-  if(!S.lines || !S.lines.length) S.lines = [{text:'', scale:100, vscale:100, align:null, gap:120}];
+  if(!S.lines || !S.lines.length) S.lines = [{text:'', scale:100, vscale:100, align:null, gap:100}];
   S.lines.forEach(function(L){ if(L.text===undefined) L.text=''; });
   if(S.main===undefined || S.main<0 || S.main>=S.lines.length) S.main = 0;
   S.text = S.lines.map(function(L){ return L.text; }).join('\n');
@@ -669,10 +669,11 @@ function syncLines(){
 function lineLayout(){
   syncLines();
   var capK = METRICS ? METRICS.cap/METRICS.upm : 0.7;
-  /* мягкий перенос (Shift+Enter) внутри строки: сущность разворачивается
-     в несколько рядов с общими параметрами, зазор между ними — её же отступ */
+  /* два независимых интервала, оба в % от кегля своего ряда:
+       L.gap      — интерлиньяж внутри поля, между рядами Shift+Enter
+       S.softLead — зазор между отдельными текстовыми полями */
   var out = [], mainRow = 0;
-  var softPct = (S.softLead===undefined ? 0 : S.softLead);   /* % от кегля строки */
+  var between = (S.softLead===undefined ? 120 : S.softLead);
   S.lines.forEach(function(L, li){
     var vs = Math.max(80, Math.min(120, L.vscale===undefined?100:L.vscale))/100;
     var scaleRel = L.scale/100;
@@ -681,7 +682,7 @@ function lineLayout(){
     parts.forEach(function(t, k){
       out.push({text:t, size:S.size*scaleRel, track:S.track,
                 align:(L.align||S.align), y:0, vs:vs,
-                gap:(k===0 ? L.gap : softPct), li:li});
+                gap:(k===0 ? between : L.gap), li:li});
     });
   });
   var m = mainRow;
@@ -1620,9 +1621,9 @@ function buildLineRows(){
         '<button class="lmain lgrip'+(i===S.main?' on':'')+'" data-act="main" title="anchor · drag to reorder">●</button>'+
       '</div>'+
       '<div class="lctl">'+
-        '<div class="lchip"><input class="num" data-f="capPx" type="number" step="1" min="1" value="'+lineCapPx(L)+'"></div>'+
-        (i ? '<div class="lchip"><input class="num" data-f="gap" type="number" step="1" value="'+L.gap+'"></div>'
-           : '<div class="lchip lna">—</div>')+
+        '<div class="lchip" title="Cap height, px"><input class="num" data-f="capPx" type="number" step="1" min="1" value="'+lineCapPx(L)+'"></div>'+
+        '<div class="lchip" title="Leading — spacing between wrapped lines in this field, % of size">'+
+          '<input class="num" data-f="gap" type="number" step="1" value="'+L.gap+'"></div>'+
         '<span class="seg mini align">'+
           '<button data-a="left" title="Align left"'+(al==='left'?' class="on"':'')+'><i class="ico-l"></i></button>'+
           '<button data-a="center" title="Align centre"'+(al==='center'?' class="on"':'')+'><i class="ico-c"></i></button>'+
@@ -1735,7 +1736,7 @@ lineHost.addEventListener('click', function(ev){
 document.getElementById('lineAdd').addEventListener('click', function(){
   syncLines();
   var last = S.lines[S.lines.length-1];
-  S.lines.push({text:'', scale:last.scale, vscale:last.vscale, align:last.align, gap:last.gap||120});
+  S.lines.push({text:'', scale:last.scale, vscale:last.vscale, align:last.align, gap:last.gap||100});
   buildLineRows(); fitView(); render();
   var rows = lineHost.querySelectorAll('.ltext');
   if(rows.length) rows[rows.length-1].focus();
@@ -1893,7 +1894,7 @@ function scheduleSave(){
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function(){
     var payload = {remember:false};
-    if(S.remember){ payload = JSON.parse(JSON.stringify(S)); payload.v = 8; }
+    if(S.remember){ payload = JSON.parse(JSON.stringify(S)); payload.v = 9; }
     STORE.set(K_STATE, JSON.stringify(payload), false).catch(function(){});
   }, 700);
 }
@@ -1929,7 +1930,19 @@ function restore(){
     var saved = JSON.parse(r.value);
     /* состояния старых сборок могли зафиксировать режимы, которых тогда ещё не было —
        их не восстанавливаем, иначе новая логика молча не включится */
-    if(saved.v !== 8){
+    /* в v9 интервалы поменялись ролями: чип строки стал интерлиньяжем внутри поля,
+       ползунок — зазором между полями. Переносим прежние значения, а не сбрасываем */
+    if(saved.v === 8 && saved.lines && saved.lines.length){
+      var oldInside = (saved.softLead===undefined ? 100 : saved.softLead);
+      var oldBetween = 120;
+      for(var q=1;q<saved.lines.length;q++){
+        if(saved.lines[q] && saved.lines[q].gap!==undefined){ oldBetween = saved.lines[q].gap; break; }
+      }
+      saved.softLead = oldBetween;
+      saved.lines.forEach(function(L){ L.gap = oldInside; });
+      saved.v = 9;
+    }
+    if(saved.v !== 9){
       delete saved.box; delete saved.mode; delete saved.guides; delete saved.track;
       /* строки старого формата: текст лежал отдельно, разносим по строкам */
       if(saved.lines && saved.text!==undefined){
