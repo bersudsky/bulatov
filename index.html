@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bulatov</title>
-<link rel="icon" href="favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.ico?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=3">
+<link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png?v=3">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=3">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
 <style>
 :root{
@@ -1853,9 +1854,51 @@ document.getElementById('exPng').addEventListener('click',function(){
 });
 
 /* ---------- память между сессиями ---------- */
-var STORE = (typeof window!=='undefined' && window.storage && typeof window.storage.get==='function') ? window.storage : null;
+/* Хранилище: в артефакте есть window.storage, на обычном сайте (GitHub Pages)
+   его нет — тогда работаем через localStorage с тем же асинхронным интерфейсом.
+   Если недоступно и оно (приватный режим), остаёмся без памяти между сессиями. */
+var STORE_KIND = 'none';
+var STORE = (function(){
+  if(typeof window!=='undefined' && window.storage && typeof window.storage.get==='function'){
+    STORE_KIND = 'artifact';
+    return window.storage;
+  }
+  try{
+    var probe = 'typewarp:probe';
+    window.localStorage.setItem(probe, '1');
+    window.localStorage.removeItem(probe);
+  }catch(e){ return null; }
+  STORE_KIND = 'local';
+  var LS = window.localStorage;
+  return {
+    get: function(k){
+      var v;
+      try{ v = LS.getItem(k); }catch(e){ return Promise.reject(e); }
+      return Promise.resolve(v===null ? null : {key:k, value:v, shared:false});
+    },
+    set: function(k, v){
+      try{ LS.setItem(k, v); }catch(e){ return Promise.reject(e); }
+      return Promise.resolve({key:k, value:v, shared:false});
+    },
+    'delete': function(k){
+      try{ LS.removeItem(k); }catch(e){ return Promise.reject(e); }
+      return Promise.resolve({key:k, deleted:true, shared:false});
+    },
+    list: function(prefix){
+      var keys=[];
+      try{
+        for(var i=0;i<LS.length;i++){
+          var k=LS.key(i);
+          if(!prefix || k.indexOf(prefix)===0) keys.push(k);
+        }
+      }catch(e){ return Promise.reject(e); }
+      return Promise.resolve({keys:keys, prefix:prefix, shared:false});
+    }
+  };
+})();
 var K_FONT='typewarp:font', K_STATE='typewarp:state';
-var MAX_B64 = 4.4*1024*1024;
+/* у localStorage запас куда меньше, чем у хранилища артефакта */
+var MAX_B64 = (STORE_KIND==='local' ? 2.2*1024*1024 : 4.4*1024*1024);
 var lastFontBlob = null;
 var memInfo = document.getElementById('memInfo');
 var forgetBtn = document.getElementById('forget');
@@ -1883,13 +1926,19 @@ function saveFont(buf, name){
   var b64;
   try{ b64 = b64FromBuf(buf); }catch(e){ return; }
   if(b64.length > MAX_B64){
-    memSay('Larger than 4 MB, so it was not stored — load it again after a refresh.');
+    memSay('Too large to store ('+kb(buf.byteLength)+') — load it again after a refresh. '+
+           'Your states are still saved.');
     return;
   }
   lastFontBlob = {name:name, size:buf.byteLength, b64:b64};
   STORE.set(K_FONT, JSON.stringify(lastFontBlob), false)
     .then(function(){ memSay('Font stored — '+kb(buf.byteLength)+'. Refreshing the page will not clear it.'); })
-    .catch(function(){ memSay('Could not store the font.'); });
+    .catch(function(){
+      lastFontBlob = null;
+      memSay(STORE_KIND==='local'
+        ? 'Browser storage is full, so the font was not saved — your states are still stored.'
+        : 'Could not store the font.');
+    });
 }
 var saveTimer=null, storeReady=false;
 function scheduleSave(){
@@ -1904,9 +1953,9 @@ function scheduleSave(){
 function forgetAll(){
   if(!STORE) return;
   lastFontBlob=null;
-  STORE.delete(K_FONT,false).catch(function(){});
-  STORE.delete(K_STATE,false).catch(function(){});
-  memSay('Storage cleared.');
+  STORE['delete'](K_FONT,false).catch(function(){});
+  STORE['delete'](K_STATE,false).catch(function(){});
+  memSay('Storage cleared. Saved states were kept.');
 }
 forgetBtn.addEventListener('click', function(){ forgetAll(); });
 document.getElementById('remember').addEventListener('change', function(){
@@ -2107,7 +2156,9 @@ function uniqueName(base){
 }
 function persistPresets(){
   if(!STORE) return;
-  STORE.set(K_PRESETS, JSON.stringify(PRESETS), false).catch(function(){});
+  STORE.set(K_PRESETS, JSON.stringify(PRESETS), false).catch(function(){
+    memSay('Browser storage is full — the last state could not be saved.');
+  });
 }
 document.getElementById('presetSave').addEventListener('click',function(){
   var nm=(presetName.value||'').trim() || ('state '+(PRESETS.length+1));
