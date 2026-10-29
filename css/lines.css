@@ -1,0 +1,37 @@
+/* Text field blocks. */
+.lblock{margin-bottom:var(--s2)}
+.lblock.drag{opacity:.4}
+.lblock.over{box-shadow:0 -2px 0 var(--accent)}
+.ltextrow{display:flex;align-items:center;gap:8px;background:var(--chip);
+  border-radius:var(--r);padding:0 var(--s3);min-height:40px;margin-bottom:var(--s2)}
+.ltextrow .ltext{flex:1;min-width:0;font-family:var(--ui);font-size:14px;
+  border:0;background:none;padding:9px 0;color:var(--ink);
+  resize:none;overflow:hidden;line-height:1.35;display:block;height:auto}
+.lmain{flex:0 0 auto;border:0;background:none;padding:0;cursor:grab;font-size:16px;line-height:1;
+  color:#c2d3e2;width:16px;text-align:center}
+.lmain:active{cursor:grabbing}
+.lmain.on{color:var(--accent)}
+.lctl{display:grid;grid-template-columns:1fr 1fr 156px auto;gap:8px;align-items:center}
+.lchip{background:var(--chip);border-radius:var(--r);height:40px;display:flex;
+  align-items:center;justify-content:center;padding:0 12px}
+.lchip .num{width:100%;min-width:0;text-align:center;background:none;border:0;
+  font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink);cursor:ew-resize}
+.seg.mini{height:40px;min-width:0;padding:2px;background:var(--chip);border-radius:var(--r);gap:2px}
+.seg.mini button{flex:1;border:0;border-radius:10px;background:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:background .1s}
+.seg.mini button.on{background:var(--ink)}
+.seg.align i{display:block;position:relative;width:16px;height:12px}
+.seg.align i::before,.seg.align i::after{content:"";position:absolute;height:2px;
+  background:var(--ink-soft);border-radius:2px;transition:background .1s}
+.seg.align i::before{top:2px;width:16px}
+.seg.align i::after{bottom:2px;width:9px}
+.seg.align button.on i::before,.seg.align button.on i::after{background:#fff}
+.ico-l::before,.ico-l::after{left:0}
+.ico-c::before{left:0}.ico-c::after{left:3.5px}
+.ico-r::before,.ico-r::after{right:0}
+.ldel{
+  width:24px;height:24px;flex:0 0 auto;border:0;border-radius:50%;background:none;padding:0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#c2d3e2;font-size:16px;line-height:1;transition:background .12s,color .12s;
+}
+.ldel:hover{background:rgba(234,65,25,.10);color:var(--accent)}

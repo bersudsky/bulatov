@@ -1,0 +1,28 @@
+/* Tokens, reset, app shell. */
+:root{
+  --panel:#ffffff;
+  --chip:#edf5fc;
+  --chip-hover:#e0edf8;
+  --line:#dbe8f4;
+  --ink:#1f3344;
+  --ink-soft:#8098ac;
+  --accent:#ea4119;
+  --accent-hover:#d3350f;
+  --mono:-apple-system,system-ui,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  --ui:-apple-system,system-ui,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  --r:12px;
+  --fsz:14px;
+  /* шаг отступов: 4 / 8 / 12 / 16 / 24 */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  font-family:var(--ui);
+  background:var(--panel);
+  color:var(--ink);
+  font-size:var(--fsz);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.app{display:flex;height:100dvh}

@@ -1,0 +1,55 @@
+/* Toggles, buttons, hints, inline rows, links. */
+/* тумблер */
+.toggle{display:flex;align-items:center;justify-content:space-between;
+  background:var(--chip);border-radius:var(--r);padding:0 12px;height:40px;
+  cursor:pointer;font-size:var(--fsz);margin-bottom:var(--s2);gap:var(--s3)}
+.toggle span{flex:1}
+.toggle input{
+  -webkit-appearance:none;appearance:none;margin:0;position:relative;flex:0 0 auto;order:2;
+  width:44px;height:26px;border-radius:26px;background:#d4d4d1;cursor:pointer;transition:background .15s;
+}
+.toggle input::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;
+  border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.toggle input:checked{background:var(--accent)}
+.toggle input:checked::after{transform:translateX(18px)}
+
+.actions{padding:var(--s2) 0 0;display:grid;gap:var(--s2)}
+/* Кнопки: одна высота 40px, один радиус, один кегль. Три уровня —
+   основная (заливка), вторичная (плашка), вторичная-опасная (плашка, красный текст) */
+.btn{
+  height:40px;padding:0 16px;border:0;border-radius:var(--r);
+  background:var(--accent);color:#fff;
+  font-family:var(--ui);font-size:14px;font-weight:600;letter-spacing:0;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  cursor:pointer;transition:background .12s,color .12s;
+}
+.btn:hover{background:var(--accent-hover)}
+.btn:active{transform:translateY(1px)}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.btn.ghost:hover{background:var(--chip-hover)}
+.btn.ghost.accent{color:var(--accent)}
+.btn.ghost.accent:hover{color:var(--accent-hover)}
+.btn.danger{background:var(--chip);color:var(--ink-soft)}
+.btn.danger:hover{background:var(--chip-hover);color:var(--ink)}
+.btn.danger.armed{background:var(--accent);color:#fff}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btn:focus-visible,.linkbtn:focus-visible,.seg button:focus-visible,
+.ldel:focus-visible,.prow .pname:focus-visible,.prow .pdel:focus-visible{
+  outline:2px solid var(--ink);outline-offset:2px;
+}
+.navbtn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.hint{margin:var(--s2) 0 0;font-size:12px;line-height:1.5;color:var(--ink-soft)}
+.memrow{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);margin-bottom:var(--s2);
+  background:var(--chip);border-radius:var(--r);padding:0 12px;min-height:40px}
+.memrow .toggle{flex:1;padding:0;background:none;height:auto;margin:0;min-height:0}
+.linkbtn{
+  height:28px;padding:0 8px;margin:0 -8px;border:0;border-radius:8px;background:none;
+  font-family:var(--ui);font-size:14px;font-weight:600;color:var(--accent);
+  cursor:pointer;white-space:nowrap;transition:background .12s,color .12s;
+}
+.linkbtn:hover{background:rgba(234,65,25,.10);color:var(--accent-hover)}
+.linkbtn:active{background:rgba(234,65,25,.18)}
+.linkbtn[disabled]{color:var(--ink-soft);background:none;pointer-events:none}
+.tinput{flex:1;min-width:0;height:28px;font-family:var(--ui);font-size:14px;padding:0;
+  border:0;background:none;color:var(--ink)}
+.tinput::placeholder{color:var(--ink-soft)}

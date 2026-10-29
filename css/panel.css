@@ -1,0 +1,111 @@
+/* Side panel, sections, font card, Advanced, sliders, segmented controls. */
+/* ---------- панель ---------- */
+  .panel{
+  width:344px;flex:0 0 344px;
+  background:var(--panel);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+  padding:var(--s2) var(--s3) var(--s5);
+}
+.panel::-webkit-scrollbar{width:8px}
+.panel::-webkit-scrollbar-thumb{background:#e0e0dd;border-radius:8px}
+.brand{
+  padding:var(--s2) 0 var(--s2);
+  display:flex;align-items:center;gap:10px;
+}
+.brand-ico{width:40px;height:40px;border-radius:9px;display:block;flex:0 0 auto}
+
+.group{padding:var(--s2) 0 var(--s2)}
+.group > h2{
+  margin:0 0 var(--s2);font-size:11px;letter-spacing:.14em;
+  color:var(--ink-soft);font-weight:600;text-transform:uppercase;
+  display:flex;justify-content:space-between;align-items:center;
+}
+
+/* загрузка шрифта */
+.drop{
+  border-radius:var(--r);background:var(--chip);
+  padding:var(--s4) var(--s3);text-align:center;cursor:pointer;
+  transition:background .12s;
+}
+.drop:hover,.drop.over{background:#dce8f5}
+.drop strong{display:block;font-size:14px;letter-spacing:.02em;font-weight:600}
+.drop small{display:block;margin-top:var(--s2);color:var(--ink-soft);font-size:12px}
+.fontinfo{margin:var(--s2) 0 0;font-size:12px;line-height:1.5;color:var(--ink-soft);word-break:break-word}
+.fontinfo:empty{display:none}
+.drop #dropLoaded{display:block}
+.drop #dropLoaded[hidden]{display:none}
+.fsample{display:block;width:100%;height:46px;color:var(--ink)}
+.fmeta{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);margin-top:var(--s2)}
+.fname{font-size:14px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fswap{font-size:14px;font-weight:600;color:var(--accent);flex:0 0 auto}
+.drop:hover .fswap{color:var(--accent-hover)}
+
+.adv{margin-top:var(--s2)}
+.adv > *:last-child{margin-bottom:0}
+.sep{height:var(--s2)}
+.btn.full{width:100%}
+.adv > summary{
+  list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;
+  height:40px;padding:0 12px;border-radius:var(--r);
+  font-size:14px;color:var(--ink-soft);user-select:none;
+}
+.adv > summary::-webkit-details-marker{display:none}
+.adv > summary::after{
+  content:"";width:7px;height:7px;margin-top:-3px;
+  border-right:1.8px solid currentColor;border-bottom:1.8px solid currentColor;
+  transform:rotate(45deg);transition:transform .15s;
+}
+.adv > summary:hover{background:var(--chip);color:var(--ink)}
+.adv[open] > summary{color:var(--ink)}
+.adv[open] > summary::after{transform:rotate(-135deg);margin-top:2px}
+.adv > .toggle{margin-top:var(--s2)}
+.fontinfo b{color:var(--ink);font-weight:600}
+
+textarea{
+  width:100%;min-height:62px;resize:vertical;
+  font-family:var(--mono);font-size:var(--fsz);line-height:1.45;
+  padding:10px 12px;border:0;border-radius:var(--r);background:var(--chip);color:var(--ink);
+}
+/* фокус подсвечивает саму плашку, а не поле внутри неё, и повторяет её скругление */
+textarea:focus,input:focus,select:focus{outline:none}
+.ltextrow:has(.ltext:focus),
+.memrow:has(.tinput:focus),
+.lchip:has(.num:focus){box-shadow:inset 0 0 0 2px var(--ink)}
+.row .num:focus{box-shadow:0 0 0 2px var(--ink);border-radius:5px}
+
+/* строка-плашка параметра */
+.row{
+  position:relative;display:flex;align-items:center;justify-content:space-between;
+  background:var(--chip);border-radius:var(--r);padding:0 12px;height:40px;
+  margin-bottom:var(--s2);overflow:hidden;
+}
+.row:last-child{margin-bottom:0}
+.row label{display:flex;align-items:center;justify-content:space-between;width:100%;margin:0}
+.row label span{font-size:var(--fsz);color:var(--ink);letter-spacing:.01em;z-index:1}
+.num{
+  width:auto;min-width:44px;text-align:right;font-family:var(--mono);font-size:var(--fsz);font-weight:600;
+  border:0;background:none;padding:0;color:var(--ink);
+  -moz-appearance:textfield;appearance:textfield;cursor:ew-resize;z-index:1;
+}
+.num::-webkit-outer-spin-button,.num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.num:focus{cursor:text;outline:none}
+
+/* слайдер — прогресс-заливкой плашки */
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  position:absolute;inset:0;width:100%;height:100%;margin:0;
+  background:none;cursor:ew-resize;z-index:2;opacity:0;
+}
+.row .fill{position:absolute;left:0;top:0;bottom:0;background:var(--chip-hover);z-index:0;pointer-events:none;border-radius:var(--r)}
+
+.seg{display:flex;height:40px;background:var(--chip);border-radius:var(--r);padding:2px;gap:2px}
+.seg button{
+  flex:1;padding:0;border:0;border-radius:10px;
+  background:none;font-family:var(--ui);font-size:14px;font-weight:400;
+  color:var(--ink-soft);cursor:pointer;transition:background .12s,color .12s;
+}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--ink);color:#fff;font-weight:600}
+.seg button.on:hover{color:#fff}
